@@ -8,11 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 
     <title>Flare Cluster Layer Example</title>
-    <link rel="stylesheet" href="http://js.arcgis.com/3.13/esri/css/esri.css">
-    <link rel="stylesheet" href="http://js.arcgis.com/3.13/dijit/themes/claro/claro.css">
+    <link rel="stylesheet" href="http://js.arcgis.com/3.14/esri/css/esri.css">
+    <link rel="stylesheet" href="http://js.arcgis.com/3.14/dijit/themes/claro/claro.css">
 
     <style>
-
         html, body {
             height: 100%;
             width: 100%;
@@ -22,48 +21,57 @@
         }
 
         #map {
-            width: 100%; 
-            height: 100%; 
-            padding: 0; 
-            margin:0; 
-            position:relative;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            position: relative;
         }
 
         #options {
             position: absolute;
             z-index: 1000;
-            bottom: 30px;
-            left: 30px;
-            display: none;
+            bottom: 0px;
+            left: 0px;
             font-size: 0.8em;
-        }
-
-        #options a {
-            text-decoration: none;
-            background-color: #FFF;
-            border: 1px Solid #000;
-            color: #000;
-            padding: 5px;
-            opacity: 0.7;
-            float: left;
-        }
-
-        #options a:first-of-type {
-            border-top-left-radius: 5px;
-            border-bottom-left-radius: 5px;
-        }
-
-        #options a:last-of-type {
-            border-top-right-radius: 5px;
-            border-bottom-right-radius: 5px;
-        }
-
-
-        #options a.active {
+            background-color: rgba(0,0,0,0.7);
+            width: 100%;
+            padding: 8px 0px 10px 20px;
+            color: #FFF;
             font-weight: bold;
-            opacity: 1;
         }
 
+            #options select {
+                height: 25px;
+                border-radius: 5px;
+                margin-right: 20px;
+            }
+
+            #options a {
+                text-decoration: none;
+                background-color: #FFF;
+                border: 1px Solid #000;
+                color: #000;
+                padding: 5px;
+                opacity: 0.7;
+                float: left;
+            }
+
+                #options a:first-of-type {
+                    border-top-left-radius: 5px;
+                    border-bottom-left-radius: 5px;
+                }
+
+                #options a:last-of-type {
+                    border-top-right-radius: 5px;
+                    border-bottom-right-radius: 5px;
+                }
+
+
+                #options a.active {
+                    font-weight: bold;
+                    opacity: 1;
+                }
     </style>
 
 
@@ -74,34 +82,38 @@
             tlmSiblingOfDojo: false,
             packages: [{
                 name: "ncam",
-                location: location.pathname.replace(/\/[^/]+$/, '') + "ncam"
+                location: location.pathname.replace(/\/[^/]+$/, '') + "/ncam"
             }]
         };
     </script>
 
-    <script src="http://js.arcgis.com/3.13/"></script>
+    <script src="http://js.arcgis.com/3.14/"></script>
     <script src="DataManager.js"></script>
 
-    <script type="text/javascript" >
+    <script type="text/javascript">
 
         var map;
         var graphics;
         var clusterLayer;
 
        //set some defaults
-        var preClustered = true;
+        var preClustered = false;
         var displaySingleFlaresAtCount = 10;
+        var areaDisplayMode = "hover";
 
         require(["esri/map", "esri/layers/graphics", "esri/graphic", "esri/dijit/PopupTemplate", "ncam/FlareClusterLayer",
-               "esri/symbols/SimpleMarkerSymbol", "esri/symbols/SimpleLineSymbol", "esri/renderers/ClassBreaksRenderer",
-                "dojo/ready", "dojo/json", "dojo/text!./data.json"],
-        function (Map, GraphicsLayer, Graphic, PopupTemplate, FlareClusterLayer, SimpleMarkerSymbol, SimpleLineSymbol, ClassBreaksRenderer, ready, JSON, data) {
+               "esri/symbols/SimpleMarkerSymbol", "esri/symbols/SimpleLineSymbol", "esri/symbols/SimpleFillSymbol", "esri/renderers/ClassBreaksRenderer",
+                "dojo/ready", "dojo/json", "dojo/dom", "dojo/on", "dojo/text!./data.json"],
+        function (Map, GraphicsLayer, Graphic, PopupTemplate, FlareClusterLayer, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, ClassBreaksRenderer, ready, JSON, dom, on, data) {
 
             //load up the dummy data
             var allData = JSON.parse(data);
             DataManager.setData(allData);
 
             ready(function () {
+
+                document.getElementById("clustering-mode").value = preClustered ? "server" : "client";
+                document.getElementById("area-mode").value = areaDisplayMode;
 
                 map = new Map("map", {
                     center: [133, -25],
@@ -111,73 +123,7 @@
                 });
 
                 map.on("load", function () {
-
-                    //get whether example is using preClustered data or client side clustering, based on the existence of a "pc" query string value being set to false
-                    var urlObject = esri.urlToObject(document.location.href);
-                    preClustered = !urlObject.query || urlObject.query["pc"] !== "false";
-                    if (preClustered) {
-                        document.getElementById("pre-clustered").setAttribute("class", "active");
-                    }
-                    else {
-                        document.getElementById("client-clustered").setAttribute("class", "active");
-                    }
-                    document.getElementById("options").style.display = "block";
-
-                    //init the layer, more options are available and defined in the cluster layer
-                    clusterLayer = new FlareClusterLayer({
-                        id: "flare-cluster-layer",
-                        spatialReference: new esri.SpatialReference({ "wkid": 4326 }),
-                        subTypeFlareProperty: "facilityType",
-                        singleFlareTooltipProperty: "name",
-                        displaySubTypeFlares: true,
-                        displaySingleFlaresAtCount: displaySingleFlaresAtCount,
-                        flareShowMode: "mouse",
-                        preClustered: preClustered,
-                        clusteringBegin: function () {
-                            console.log("clustering begin");
-                        },
-                        clusteringComplete: function () {
-                            console.log("clustering complete");
-                        }
-                    });
-
-                    //set up a class breaks renderer to render different symbols based on the cluster count. Must use the required clusterCount property to break on.
-                    var defaultSym = new SimpleMarkerSymbol().setSize(6).setColor("#FF0000").setOutline(null)
-                    var renderer = new ClassBreaksRenderer(defaultSym, "clusterCount");
-                    var xlSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 32, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([200, 52, 59, 0.8]), 1), new dojo.Color([250, 65, 74, 0.8]));
-                    var lgSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 28, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([41, 163, 41, 0.8]), 1), new dojo.Color([51, 204, 51, 0.8]));
-                    var mdSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 24, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([82, 163, 204, 0.8]), 1), new dojo.Color([102, 204, 255, 0.8]));
-                    var smSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 22, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([230, 184, 92, 0.8]), 1), new dojo.Color([255, 204, 102, 0.8]));
-
-                    renderer.addBreak(0, 19, smSymbol);
-                    renderer.addBreak(20, 150, mdSymbol);
-                    renderer.addBreak(151, 1000, lgSymbol);
-                    renderer.addBreak(1001, 20000, xlSymbol);
-                    clusterLayer.setRenderer(renderer);
-
-                    //set up a popup template
-                    var template = new PopupTemplate({
-                        title: "{name}",
-                        fieldInfos: [
-                          { fieldName: "facilityType", label: "Facility Type", visible: true },
-                          { fieldName: "postcode", label: "Post Code", visible: true },
-                          { fieldName: "isOpen", label: "Opening Hours", visible: true }
-                        ]
-                    });
-                    clusterLayer.infoTemplate = template;
-                    map.infoWindow.titleInBody = false;
-
-                    map.addLayer(clusterLayer);
-
-                    //get the first set of data
-                    if (preClustered) {
-                        getPreClusteredGraphics();
-                    }
-                    else {
-                        //not preclustered - just add the raw data
-                        var data = DataManager.getData();
-                        clusterLayer.addData(data);
-                    }
+                    initLayer();
                 });
 
                 //for preclustered data, clear and re-get the data on every zoom or pan
@@ -200,34 +146,118 @@
                 });
 
             });
+
+
+            function initLayer() {
+
+                //init the layer, more options are available and explained in the cluster layer constructor
+                clusterLayer = new FlareClusterLayer({
+                    id: "flare-cluster-layer",
+                    spatialReference: new esri.SpatialReference({ "wkid": 4326 }),
+                    subTypeFlareProperty: "facilityType",
+                    singleFlareTooltipProperty: "name",
+                    displaySubTypeFlares: true,
+                    displaySingleFlaresAtCount: displaySingleFlaresAtCount,
+                    flareShowMode: "mouse",
+                    preClustered: preClustered,
+                    clusterRatio: 75,
+                    clusterAreaDisplay: areaDisplayMode,
+                    clusteringBegin: function () {
+                        console.log("clustering begin");
+                    },
+                    clusteringComplete: function () {
+                        console.log("clustering complete");
+                    }
+                });
+
+                //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
+                var defaultSym = new SimpleMarkerSymbol().setSize(6).setColor("#FF0000").setOutline(null)
+                var renderer = new ClassBreaksRenderer(defaultSym, "clusterCount");
+                var xlSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 32, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([200, 52, 59, 0.8]), 1), new dojo.Color([250, 65, 74, 0.8]));
+                var lgSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 28, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([41, 163, 41, 0.8]), 1), new dojo.Color([51, 204, 51, 0.8]));
+                var mdSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 24, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([82, 163, 204, 0.8]), 1), new dojo.Color([102, 204, 255, 0.8]));
+                var smSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 22, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([230, 184, 92, 0.8]), 1), new dojo.Color([255, 204, 102, 0.8]));
+                renderer.addBreak(0, 19, smSymbol);
+                renderer.addBreak(20, 150, mdSymbol);
+                renderer.addBreak(151, 1000, lgSymbol);
+                renderer.addBreak(1001, Infinity, xlSymbol);
+
+                if (areaDisplayMode) {
+                    //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
+                    var defaultAreaSym = new SimpleFillSymbol().setStyle(SimpleFillSymbol.STYLE_SOLID).setColor(new dojo.Color([0, 0, 0, 0.2])).setOutline(new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([0, 0, 0, 0.3]), 1));
+                    var areaRenderer = new ClassBreaksRenderer(defaultAreaSym, "clusterCount");
+                    var xlAreaSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([200, 52, 59, 0.8]), 1), new dojo.Color([250, 65, 74, 0.8]));
+                    var lgAreaSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([41, 163, 41, 0.8]), 1), new dojo.Color([51, 204, 51, 0.8]));
+                    var mdAreaSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([82, 163, 204, 0.8]), 1), new dojo.Color([102, 204, 255, 0.8]));
+                    var smAreaSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new dojo.Color([230, 184, 92, 0.8]), 1), new dojo.Color([255, 204, 102, 0.8]));
+
+                    areaRenderer.addBreak(0, 19, smAreaSymbol);
+                    areaRenderer.addBreak(20, 150, mdAreaSymbol);
+                    areaRenderer.addBreak(151, 1000, lgAreaSymbol);
+                    areaRenderer.addBreak(1001, Infinity, xlAreaSymbol);
+
+                    //use the custom overload of setRenderer to include the renderer for areas.
+                    clusterLayer.setRenderer(renderer, areaRenderer);
+                }
+                else {
+                    clusterLayer.setRenderer(renderer); //use standard setRenderer.
+                }
+
+
+                //set up a popup template
+                var template = new PopupTemplate({
+                    title: "{name}",
+                    fieldInfos: [
+                      { fieldName: "facilityType", label: "Facility Type", visible: true },
+                      { fieldName: "postcode", label: "Post Code", visible: true },
+                      { fieldName: "isOpen", label: "Opening Hours", visible: true }
+                    ]
+                });
+                clusterLayer.infoTemplate = template;
+                map.infoWindow.titleInBody = false;
+
+                map.addLayer(clusterLayer);
+
+                //get the first set of data
+                if (preClustered) {
+                    getPreClusteredGraphics();
+                }
+                else {
+                    //not preclustered - just add the raw data to be clusted within the layer.
+                    var data = DataManager.getData();
+                    clusterLayer.addData(data);
+                }
+            }
+
+            function clearLayer() {
+                map.removeLayer(clusterLayer);
+                clusterLayer = null;
+            }
+
+            function getPreClusteredGraphics() {
+
+                var maxSingleFlareCount = displaySingleFlaresAtCount;
+
+                var clusterRatio = 75;
+                var clusteredData = DataManager.fakeServerSideClustering(clusterRatio, maxSingleFlareCount, areaDisplayMode, map);
+                clusterLayer.addPreClusteredData(clusteredData);
+
+            }
+
+            //setup some event handlers to handler change of options
+            on(dom.byId("clustering-mode"), "change", function (evt) {
+                clearLayer();
+                preClustered = this.value === "server" ? true : false;
+                initLayer();
+            });
+
+            on(dom.byId("area-mode"), "change", function (evt) {
+                clearLayer();
+                areaDisplayMode = this.value;
+                initLayer();
+            });
+
         });
-
-		function getPreClusteredGraphics(){
-			//get the current extent of the map. Convert to 4326 to match the test data
-			var extent = esri.geometry.webMercatorToGeographic(map.extent);
-			var zoom = map.getZoom();
-			var maxSingleFlareCount = displaySingleFlaresAtCount;
-			
-            //set a tolerance based on the zoom, null means no clusters created, only single points displayed. This is roughly calculated to give a good picture based on the test data used.
-			var clusterTolerance = zoom === 3 ? 5.5 : zoom === 4 ? 5 : zoom === 5 ? 4 : zoom === 6 ? 2 : zoom === 7 ? 1 : zoom === 8 ? 0.5 : zoom === 9 ? 0.2 : zoom === 10 ? 0.1 : zoom === 11 ? 0.05 : null;
-
-			var clusteredData = DataManager.fakeServerSideClustering(extent.xmin, extent.xmax, extent.ymin, extent.ymax, clusterTolerance, maxSingleFlareCount);
-            clusterLayer.addPreClusteredData(clusteredData);
-		}
-
-		function changeClusterType(type) {
-		    if ((type === "server" && preClustered) || (type === "client" && !preClustered)) {
-		        return; //already of selected type
-		    }
-
-		    if (type === "server") {
-		        window.location.href = window.location.href.split('?')[0];
-		    }
-		    else {
-		        window.location.href = window.location.href + "?pc=false";
-		    }
-
-		}
 
 
     </script>
@@ -238,9 +268,21 @@
 
     <div id="map">
 
-        <div id="options" >
-            <a title="click to change clustering mode" id="pre-clustered" href="javascript:void(0);" onclick="changeClusterType('server');">Fake Server side clustering</a>
-            <a title="click to change clustering mode" id="client-clustered" href="javascript:void(0);" onclick="changeClusterType('client');">Client side clustering</a>
+        <div id="options">
+
+            <label>Clustering mode:</label>
+            <select id="clustering-mode">
+                <option value="server">Fake server side</option>
+                <option value="client">Client side</option>
+            </select>
+
+            <label>Display cluster area mode:</label>
+            <select id="area-mode">
+                <option value="">None</option>
+                <option value="hover">Hover</option>
+                <option value="always">Always</option>
+            </select>
+
         </div>
     </div>
 

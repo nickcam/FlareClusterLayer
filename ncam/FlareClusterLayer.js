@@ -8,22 +8,24 @@
   "dojox/gfx",
   "dojox/gfx/fx",
   "dojox/gesture/tap",
- 
+
   "esri/SpatialReference",
   "esri/geometry/Point",
+  "esri/geometry/Polygon",
   "esri/graphic",
   "esri/symbols/SimpleMarkerSymbol",
   "esri/symbols/SimpleFillSymbol",
   "esri/symbols/SimpleLineSymbol",
   "esri/symbols/TextSymbol",
   "esri/renderers/ClassBreaksRenderer",
+  "esri/geometry/geometryEngine",
 
   "esri/dijit/PopupTemplate",
   "esri/layers/GraphicsLayer"
 ], function (
   declare, lang, arrayUtils, Color, on, coreFx, gfx, fx, tap,
-  SpatialReference, Point, Graphic, SimpleMarkerSymbol, SimpleFillSymbol, SimpleLineSymbol, TextSymbol,
-  ClassBreaksRenderer, PopupTemplate, GraphicsLayer
+  SpatialReference, Point, Polygon, Graphic, SimpleMarkerSymbol, SimpleFillSymbol, SimpleLineSymbol, TextSymbol,
+  ClassBreaksRenderer, geometryEngine, PopupTemplate, GraphicsLayer
 ) {
     return declare([GraphicsLayer], {
         constructor: function (options) {
@@ -31,9 +33,7 @@
               spatialReference: default 102100. A SpatialReference object using the wkid of that data.
               preClustered (boolean) : default false. Whether the data is pre-clustered or not. If true the addPreClusteredData method should be used to add data. 
                                         If false use addData method and clusters will be calculated within the layer.
-              clusterTolerance (boolean): default 80. When not pre clustered this is the pixel tolerance to apply when checking if a point should be added to a cluster.
-              reclusterOnPan (boolean): default false. When true will force a recluster to happen on every pan as well as zoom. When drilling down if there's a large amount of data and this is false 
-                                         performance suffers as the amount of graphics not in the viewport becomes large. This enforces current extent checking when doing the clustering.
+              clusterRatio (number): default 75. When not pre clustered this is the ratio to divide the width and height of the map by which is used to draw up a grid to represent cluster areas. Experiment based on your data.
               displaySubTypeFlares (boolean): default false. Whether to dipslay flares for sub types (ie the count of a property). If this is true, then subTypeFlareProperty must also be set
               subTypeFlareProperty (string): default null. If specified and displaySubTypeFlares is true, layer will display flares that contain a count of the objects that have the same value for the configured property.
               flareColor (dojo.Color) : default new Color([0, 0, 0, 0.5]). The color for flares.
@@ -44,33 +44,44 @@
               flareShowMode (string): default 'mouse'. Must be 'mouse' or 'tap'. On a mouse enabled device whether to show the flares on mouse enter and hide on mouse leave, or on tap / click. Devices with no mouse will behave like 'tap' anyway.
               clusteringBegin (function): default null. A basic callback function that get's fired when clustering is beginning. 
               clusteringComplete (function): default null. A basic callback function that get's fired when clustering is complete.  
+              clusterAreaDisplay (string): default null. Can be either 'always' or 'hover'. 'always' will constantly display the cluster area, 'hover' will only display it on hover of cluster object
+                                                         The cluster area is a ploygon of the total area covered by the points in a cluster. If using preClustered data, each cluster object must contain a property called 'points' which is an array of points for every point in the cluster. example: cluster.points = [[x1, y1], [x2, y2], [x3, y3]];
+              clusterAreaRenderer (Renderer): default null. This is required if clusterAreaDisplay is set. This can be set in options constructor object or by calling setRenderer as the second argument.
             */
 
             //set options from constructor parameter or set defaults
             options = options || {};
             this.spatialRef = options.spatialReference || new SpatialReference({ "wkid": 102100 });
-            this.preClustered = options.preClustered === true; //whether the data has already been clustered (ie: server side), defaults false
-            this.clusterTolerance = options.clusterTolerance || 80; //when client side clustering this is the tolerance to apply to pixels to see if a point should be clustered.
-            this.reclusterOnPan = options.reclusterOnPan === true; //Default false. When client side clustering this will force a recluster to happen on every pan as well as zoom. Wehn drilling down if there's a large amount of data performance suffers as the amount of graphics not in the viewport becomes large.
+            this.preClustered = options.preClustered === true;
+            this.clusterRatio = options.clusterRatio || 75;
 
-            this.displaySubTypeFlares = options.displaySubTypeFlares === true; //whether to dipslay flares for sub types. If this is true, then subTypeFlareProperty must also be set
-            this.subTypeFlareProperty = options.subTypeFlareProperty || null; //if specified will display flares for a count of sub types property
+            this.displaySubTypeFlares = options.displaySubTypeFlares === true;
+            this.subTypeFlareProperty = options.subTypeFlareProperty || null;
 
-            this.flareColor = options.flareColor || new Color([0, 0, 0, 0.5]); //default flare color.
-            this.maxFlareCount = options.maxFlareCount || 8; //the max number of flares to display. If this it too high they may overlap, depends on the size of the cluster symbols.
-            this.displaySingleFlaresAtCount = options.displaySingleFlaresAtCount || 8; //if a cluster contains this count or less it will display flare that represent single objects. If it contians greater than this count it will display sub type flares if they have been configured to be displayed.
-            this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || null; //property name to get the values for displaying in single point flares tooltips.
+            this.flareColor = options.flareColor || new Color([0, 0, 0, 0.5]);
+            this.maxFlareCount = options.maxFlareCount || 8;
+            this.displaySingleFlaresAtCount = options.displaySingleFlaresAtCount || 8;
+            this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || null;
             var defaultTextSymbol = new TextSymbol()
                            .setColor(new dojo.Color([255, 255, 255]))
                            .setAlign(esri.symbol.Font.ALIGN_START)
                            .setFont(new esri.symbol.Font("10pt").setWeight(esri.symbol.Font.WEIGHT_BOLD).setFamily("calibri"))
                            .setVerticalAlignment("middle");
             this.textSymbol = options.textSymbol || defaultTextSymbol;
-            this.flareShowMode = options.flareShowMode || "mouse"; //on a mouse enabled device whether to show the flares on mouse enter and hide on mouse leave, or on tap / click. Can either be "mouse", or "tap". Devices with no mouse will always use tap.
+            this.flareShowMode = options.flareShowMode || "mouse";
 
             //a couple of callbacks - could make them into events on the layer, and/or have the clustering return deferreds. 
-            this.clusteringBegin = options.clusteringBegin; //a basic callback function that get's fired when clustering is beginning.
-            this.clusteringComplete = options.clusteringComplete; //a basic callback function that get's fired when clustering is complete.
+            this.clusteringBegin = options.clusteringBegin;
+            this.clusteringComplete = options.clusteringComplete;
+
+            this.clusterAreaDisplay = options.clusterAreaDisplay;
+            this.clusterAreaRenderer = options.clusterAreaRenderer;
+
+            if (this.clusterAreaDisplay && (this.clusterAreaDisplay !== 'always' && this.clusterAreaDisplay !== 'hover')) {
+                console.error("clusterAreaDisplay can only be 'always' or 'hover'.");
+                return;
+            }
+
 
             if (this.flareShowMode !== "mouse" && this.flareShowMode !== "tap") {
                 console.error("flareShowMode option can only be 'mouse' or 'tap'");
@@ -93,34 +104,42 @@
 
 
         //#region override some GraphicsLayer methods 
+
+        //add an extra argument to setRenderer. It is an optional renderer for displaying the cluster areas. The clusterAreaRenderer can also be set in constructor.
+        setRenderer: function (renderer, clusterAreaRenderer) {
+            if (clusterAreaRenderer) {
+                this.clusterAreaRenderer = clusterAreaRenderer;
+            }
+
+            return this.inherited(arguments);
+        },
+
         _setMap: function (map, surface) {
 
             this.map = map;
             this.surface = surface;
-            
+
             this.events.push(on(this.map, "resize", lang.hitch(this, this._mapResize)));
-    
-            if (this.reclusterOnPan) {
-                //add pan events to limit to recluster on each pan aif configured.
-                this.events.push(on(this.map, "pan-start", lang.hitch(this, this.clear)));
-                this.events.push(on(this.map, "pan-end", lang.hitch(this, this._clusterData)));
-            }
+
+            //add pan and zoom events to limit to recluster
+            this.events.push(on(this.map, "pan-start", lang.hitch(this, this.clear)));
+            this.events.push(on(this.map, "pan-end", lang.hitch(this, this._clusterData)));
 
             this.events.push(on(this.map, "zoom-start", lang.hitch(this, this.clear)));
             this.events.push(on(this.map, "zoom-end", lang.hitch(this, this._clusterData)));
-              
+
             //Handle click event at the map level
             this.events.push(on(this.map, "click", lang.hitch(this, this._mapClick)));
-            
+
             this.events.push(on(this.map.infoWindow, "show", lang.hitch(this, this._infoWindowShow)));
             this.events.push(on(this.map.infoWindow, "hide", lang.hitch(this, this._infoWindowHide)));
-  
+
             this.events.push(on(this, "graphic-draw", this._graphicDraw));
             this.events.push(on(this, "graphic-node-remove", this._graphicNodeRemove));
 
             this.events.push(on(this, "mouse-over", this._graphicMouseOver));
             this.events.push(on(this, "mouse-out", this._graphicMouseOut));
-           
+
             return this.inherited(arguments);
         },
 
@@ -142,7 +161,7 @@
         },
 
         onClick: function (evt) {
-            
+
             this._restoreInfoWindowSettings();
 
             if (evt.graphic.attributes.isCluster) {
@@ -168,7 +187,7 @@
 
                 //if we're clicking on a single data flare then show an info window
                 var graphic = evt.graphic;
-                
+
                 this.originalInfoWindow = {
                     highlight: lang.clone(this.map.infoWindow.get("highlight")),
                     anchor: lang.clone(this.map.infoWindow.anchor)
@@ -180,8 +199,8 @@
                 this.map.infoWindow.setFeatures([graphic]);
 
                 //when getting screen point make sure we use the location of the flare on screen, by converting the map point on the object.
-                var sp = this.map.toScreen({x: flareObject.mapPoint.x, y: flareObject.mapPoint.y });
-                
+                var sp = this.map.toScreen({ x: flareObject.mapPoint.x, y: flareObject.mapPoint.y });
+
                 //Could do something with the anchor of the info window here if wanted. The offsets can be a bit wacky as well.
                 //var anchor = this._getInfoWindowAnchor(flareObject.degree);
                 //this.map.infoWindow.anchor = anchor;
@@ -192,9 +211,8 @@
                 var p = esri.geometry.geographicToWebMercator(new Point(flareObject.singleData.x, flareObject.singleData.y, this.spatialRef));
                 this.map.infoWindow.features[0].geometry = p;
                 this.map.infoWindow.show(sp);
-                
-            }
 
+            }
         },
 
         //Add a data point to be clustered.
@@ -213,73 +231,85 @@
             //If using add() to add a large amount of objects (eg: in a long loop), clusters and their elements will be removed and recreated when changes are applied to them,this can be expensive
             //If you use addData and pass in an array clusters will only be created in the DOM once they have been fully calculated
 
-            //get an extent that is in web mercator to make sure it's flat for extent checking
-            var projExtent = esri.geometry.project(map.extent, new SpatialReference({ "wkid": 102100 }));
-            var resolution = projExtent.getWidth() / map.width;
+            //can't add client side if preClustered is being used
+            if (this.preClustered) {
+                return;
+            }
 
+            //get an extent that is in web mercator to make sure it's flat for extent checking
+            var webExtent = esri.geometry.project(map.extent, new SpatialReference({ "wkid": 102100 }));
+            if (!this.gridClusters || this.gridClusters.length === 0) {
+                this._createClusterGrid();
+            }
 
             var obj = p;
+            if (!this.allData) {
+                this.allData = [];
+            }
+
             this.allData.push(obj);
-            var addedToResult = this._addPointToCluster(obj, this.clusters, projExtent, resolution, this.clusterTolerance);
-            if (!addedToResult) {
-                return; //result was null so point wasn't checked, just return
+
+            //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
+            web = esri.geometry.lngLatToXY(obj.x, obj.y);
+
+            //filter by visible extent first
+            if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
+                return; //not in the visible extent
             }
 
-            var cl = addedToResult.addedTo;
-            if (cl) {
-                //obj was added to this cluster, recreate the cluster
-                this._removeCluster(cl);
-                this._createCluster(cl);
-            }
-            else {
-                var addedToCluster = false;
-                //didn't find a cluster to add to so check against singles that may exist
-                var webPoint = esri.geometry.geographicToWebMercator(new Point(obj.x, obj.y, this.spatialRef));
-                for (var i = 0, len = this.singles.length; i < len; i++) {
-                    var sin = this.singles[i];
-                    var sinWebPoint = esri.geometry.geographicToWebMercator(new Point(sin.x, sin.y, this.spatialRef));
+            //loop cluster grid to see if it should be added to one
+            for (var j = 0, jLen = this.gridClusters.length; j < jLen; j++) {
+                var cl = this.gridClusters[j];
 
-                    if (this._isInClusterRange(webPoint, sinWebPoint, resolution, this.clusterTolerance)) {
+                if (web[0] < cl.extent.xmin || web[0] > cl.extent.xmax || web[1] < cl.extent.ymin || web[1] > cl.extent.ymax) {
+                    continue; //not here so carry on
+                }
 
-                        //create a new cluster with these two points
-                        var subTypeCounts;
-                        if (this.displaySubTypeFlares && this.subTypeFlareProperty && obj.hasOwnProperty(this.subTypeFlareProperty)) {
-                            if (sin[this.subTypeFlareProperty] === obj[this.subTypeFlareProperty]) {
-                                subTypeCounts = [{ name: obj[this.subTypeFlareProperty], count: 2 }];
-                            }
-                            else {
-                                subTypeCounts = [{ name: obj[this.subTypeFlareProperty], count: 1 }, { name: sin[this.subTypeFlareProperty], count: 1 }];
-                            }
-                        }
+                //recalc the x and y of the cluster by averaging the points again
+                cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
+                cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
 
-                        var cl = {
-                            clusterCount: 2,
-                            x: (obj.x + sin.x) / 2,
-                            y: (obj.y + sin.y) / 2,
-                            subTypeCounts: subTypeCounts
-                        };
+                //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
+                if (this.clusterAreaDisplay) {
+                    cl.points.push([obj.x, obj.y]);
+                }
 
-                        //remove from singles list and singles from graphics list
-                        this.remove(sin.graphic);
-                        this.singles.splice(i, 1);
-                        delete sin.graphic;
+                cl.clusterCount++;
 
-                        cl.singles = [lang.clone(sin), lang.clone(obj)];
-
-                        //create the new cluster
-                        this._createCluster(cl);
-                        addedToCluster = true;
+                var subTypeExists = false;
+                for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
+                    if (cl.subTypeCounts[s].name === obj.facilityType) {
+                        cl.subTypeCounts[s].count++;
+                        subTypeExists = true;
                         break;
                     }
                 }
+                if (!subTypeExists) {
+                    cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
+                }
 
-                if (!addedToCluster) {
-                    //didn't find a cluster to add to at all so add a single
+                cl.singles.push(obj);
+
+                if (cl.clusterCount === 1) {
+                    //this was the only point in this cluster area so add a single
                     this._createSingle(obj);
+                }
+                else {
+                    if (cl.clusterCount === 2) {
+                        //if it was previously a single remove the single.
+                        var index = this.singles.indexOf(cl.singles[0]);
+                        this.remove(cl.singles[0].graphic);
+                        this.singles.splice(index, 1);
+                        delete cl.singles[0].graphic;
+                    }
+                    else {
+                        //only remove if the count is > 2. Would have been a single previously.
+                        this._removeCluster(cl);
+                    }
+                    this._createCluster(cl);
                 }
             }
         },
-
 
         clear: function () {
             // Summary:  Remove all clusters and data points.
@@ -306,22 +336,21 @@
             this.map.infoWindow.hide();
             this.map.infoWindow.clearFeatures();
 
+            this.gridClusters = [];
             this.clusters = [];
             this.singles = [];
         },
-
-       
 
         //#endregion
 
         //#region other event handlers
 
-        _mapResize: function() {
+        _mapResize: function () {
             //destroy any orphaned cluster group nodes
             dojo.query("g.cluster-group:empty", this.getNode()).forEach(dojo.destroy);
         },
 
-        _mapClick: function(e) {
+        _mapClick: function (e) {
             if (!e.target) {
                 return;
             }
@@ -340,7 +369,7 @@
             }
         },
 
-        _graphicDraw: function(e){
+        _graphicDraw: function (e) {
             var g = e.graphic;
             if (g.attributes.isCluster) {
                 //create the cluster graphics if this is a cluster being drawn
@@ -350,7 +379,13 @@
                     this._clearActiveCluster();
                 }
             }
+            else if (g.attributes.isClusterArea) {
+                var sh = g.getShape();
+                sh.moveToBack();
+            }
 
+
+            return this.inherited(arguments);
         },
 
         _graphicNodeRemove: function (e) {
@@ -364,12 +399,14 @@
             }
         },
 
-        _graphicMouseOver: function(e) {
-            if (e.graphic.attributes.isCluster) {
-                this._activateCluster(e.graphic);
-            }
-            else if (e.graphic.attributes.isFlare) {
-                this._showFlareDetail(e.graphic);
+        _graphicMouseOver: function (e) {
+            if (this.flareShowMode === "mouse") {
+                if (e.graphic.attributes.isCluster) {
+                    this._activateCluster(e.graphic);
+                }
+                else if (e.graphic.attributes.isFlare) {
+                    this._showFlareDetail(e.graphic);
+                }
             }
         },
 
@@ -380,20 +417,20 @@
         },
 
 
-        _infoWindowShow: function(e) {
+        _infoWindowShow: function (e) {
             for (var i = 0; i < this.map.infoWindow.features.length; i++) {
-                if (this.map.infoWindow.features[i].attributes.isCluster) {
+                if (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea) {
                     this.map.infoWindow.hide(); //if a cluster never show an info window
                     return;
                 }
             }
         },
 
-        _infoWindowHide: function(e) {
+        _infoWindowHide: function (e) {
             this.map.infoWindow.cluster = null;
         },
 
-        
+
         //#endregion
 
 
@@ -448,14 +485,13 @@
 
         //#region internal stuff
 
-        _restoreInfoWindowSettings: function(){
+        _restoreInfoWindowSettings: function () {
             if (this.originalInfoWindow) {
                 this.map.infoWindow.set("highlight", this.originalInfoWindow.highlight);
                 this.map.infoWindow.anchor = this.originalInfoWindow.anchor;
             }
         },
 
-       
         _clusterData: function () {
 
             //this function currently only applies if not using preclustered data
@@ -467,121 +503,103 @@
                 this.clusteringBegin();
             }
 
+            console.time("client-cluster");
+
             //get an extent that is in web mercator to make sure it's flat for extent checking
-            var projExtent = esri.geometry.project(map.extent, new SpatialReference({ "wkid": 102100 }));
-            var resolution = projExtent.getWidth() / map.width;
+            var webExtent = esri.geometry.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
+            this._createClusterGrid(webExtent);
 
-            var tempClusters = [];
-            for (var i = 0, len = this.allData.length; i < len; i++) {
+            var dataLength = this.allData.length;
+            var web, obj;
+            for (var i = 0; i < dataLength; i++) {
+                obj = this.allData[i];
+                //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
+                web = esri.geometry.lngLatToXY(obj.x, obj.y);
 
-                var obj = this.allData[i];
-               
-                var addedToResult = this._addPointToCluster(obj, tempClusters, projExtent, resolution, this.clusterTolerance);
-                if (!addedToResult) {
-                    continue; //result was null so point wasn't checked, just continue
+                //filter by visible extent first
+                if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
+                    continue;
                 }
 
+                //loop cluster grid to see if it should be added to one
+                for (var j = 0, jLen = this.gridClusters.length; j < jLen; j++) {
+                    var cl = this.gridClusters[j];
 
-                //didn't find a cluster to add to, create a cluster with a single point
-                if (!addedToResult.addedTo) {
-                 
-                    var subTypeCounts;
-                    if (this.displaySubTypeFlares && this.subTypeFlareProperty && obj.hasOwnProperty(this.subTypeFlareProperty)) {
-                        subTypeCounts = [{ name: obj[this.subTypeFlareProperty], count: 1 }];
+                    if (web[0] < cl.extent.xmin || web[0] > cl.extent.xmax || web[1] < cl.extent.ymin || web[1] > cl.extent.ymax) {
+                        continue; //not here so carry on
                     }
 
-                    var clWebPoint = esri.geometry.geographicToWebMercator(new Point(obj.x, obj.y, this.spatialRef));
-                    var cl = {
-                        clusterCount: 1,
-                        singles: [lang.clone(obj)],
-                        x: obj.x,
-                        y: obj.y,
-                        subTypeCounts: subTypeCounts,
-                        webPoint: clWebPoint
-                    };
-                    tempClusters.push(cl);
-                }
-            }
+                    //recalc the x and y of the cluster by averaging the points again
+                    cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
+                    cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
 
-            //now loop the temp clusters and work out singles from actual clusters and create the graphics
-            for (var i = 0, len = tempClusters.length; i < len; i++) {
-                if (tempClusters[i].clusterCount === 1) {
-                    this._createSingle(tempClusters[i].singles[0]);
-                }
-                else {
-                    this._createCluster(tempClusters[i]);
-                }
-            }
+                    //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
+                    if (this.clusterAreaDisplay) {
+                        cl.points.push([obj.x, obj.y]);
+                    }
 
-            if (this.clusteringComplete) {
-                this.clusteringComplete();
-            }
-
-        },
-
-
-        _isInClusterRange: function (point, cluster, resolution, tolerance) {
-            //check if the point is in range of the cluster. Formula taken from esri cluster layer: https://developers.arcgis.com/javascript/jssamples/layers_point_clustering.html
-            var distance = (
-              Math.sqrt(Math.pow((cluster.x - point.x), 2) + Math.pow((cluster.y - point.y), 2)) / resolution
-            );
-            return (distance <= tolerance);
-        },
-
-
-        _addPointToCluster: function (obj, clusters, projExtent, resolution, tolerance) {
-
-            if (!obj.x || !obj.y) {
-                return null; //no x and y so can't add this object
-            }
-
-            //only check if in the current extent - this is for performance reasons for large data set, may not be needed
-            var webPoint = esri.geometry.geographicToWebMercator(new Point(obj.x, obj.y, this.spatialRef));
-            if (this.reclusterOnPan) {
-                if (webPoint.x < projExtent.xmin || webPoint.x > projExtent.xmax || webPoint.y < projExtent.ymin || webPoint.y > projExtent.ymax) {
-                    return null; //not in the current extent so continue
-                }
-            }
-
-            //check this point against the existing clusters to see if it should be added to one
-            for (var j = 0, jLen = clusters.length; j < jLen; j++) {
-                var cl = clusters[j];
-                if (this._isInClusterRange(webPoint, cl.webPoint, resolution, tolerance)) {
-                    //recalc the x and y of the cluster by averaging the points
-                    cl.x = (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1);
-                    cl.y = (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1);
-
-                    cl.webPoint = esri.geometry.geographicToWebMercator(new Point(cl.x, cl.y, this.spatialRef));
                     cl.clusterCount++;
 
-                    //add sub type count to the array in the cluster object if they have been configured
-                    if (this.displaySubTypeFlares && this.subTypeFlareProperty && obj.hasOwnProperty(this.subTypeFlareProperty)) {
-                        var subTypeExists = false;
-                        for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
-                            if (cl.subTypeCounts[s].name === obj[this.subTypeFlareProperty]) {
-                                cl.subTypeCounts[s].count++;
-                                subTypeExists = true;
-                                break;
-                            }
-                        }
-                        if (!subTypeExists) {
-                            cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
+                    var subTypeExists = false;
+                    for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
+                        if (cl.subTypeCounts[s].name === obj.facilityType) {
+                            cl.subTypeCounts[s].count++;
+                            subTypeExists = true;
+                            break;
                         }
                     }
-
-                    //add the singles data to the cluster if there's less than the configured amount to keep track of
-                    if (cl.singles.length + 1 <= this.displaySingleFlaresAtCount) {
-                        cl.singles.push(lang.clone(obj));
-                    }
-                    else {
-                        cl.singles = [];
+                    if (!subTypeExists) {
+                        cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
                     }
 
-                    return { addedTo: cl };
+                    cl.singles.push(obj);
                 }
             }
 
-            return { addedTo: null };
+            for (var i = 0, len = this.gridClusters.length; i < len; i++) {
+                if (this.gridClusters[i].clusterCount === 1) {
+                    this._createSingle(this.gridClusters[i].singles[0]);
+                }
+                else if (this.gridClusters[i].clusterCount > 0) {
+                    this._createCluster(this.gridClusters[i]);
+                }
+            }
+
+            console.timeEnd("client-cluster");
+
+        },
+
+        _createClusterGrid: function (webExtent) {
+
+            //get the total amount of grid spaces based on the height and width of the map (divide it by clusterRatio) - then get the degrees for x and y 
+            var xCount = Math.round(this.map.width / this.clusterRatio);
+            var yCount = Math.round(this.map.height / this.clusterRatio);
+
+            var xw = (webExtent.xmax - webExtent.xmin) / xCount;
+            var yh = (webExtent.ymax - webExtent.ymin) / yCount;
+
+            var gsxmin, gsxmax, gsymin, gsymax;
+
+            //create an array of clusters that is a grid over the visible extent. Each cluster contains the extent (in web merc) that bounds the grid space for it.
+            this.gridClusters = [];
+            for (var i = 0; i < xCount; i++) {
+                gsxmin = webExtent.xmin + (xw * i);
+                gsxmax = gsxmin + xw;
+                for (var j = 0; j < yCount; j++) {
+                    gsymin = webExtent.ymin + (yh * j);
+                    gsymax = gsymin + yh;
+                    var ext = new esri.geometry.Extent({ xmin: gsxmin, xmax: gsxmax, ymin: gsymin, ymax: gsymax });
+                    ext.setSpatialReference(new esri.SpatialReference({ "wkid": 102100 }));
+                    this.gridClusters.push({
+                        extent: ext,
+                        clusterCount: 0,
+                        subTypeCounts: [],
+                        singles: [],
+                        points: []
+                    });
+                }
+            }
+
         },
 
         _createSingle: function (single) {
@@ -607,14 +625,33 @@
             delete cluster.groupShape;
 
             var attributes = {
-                isCluster: true,
                 x: cluster.x,
                 y: cluster.y,
                 clusterCount: cluster.clusterCount
             }
 
+            var areaGraphic;
+            if (this.clusterAreaDisplay && cluster.points && cluster.points.length > 0) {
+                if (!this.clusterAreaRenderer) {
+                    console.error("_createCluster: clusterAreaRenderer must be set if clusterAreaDisplay is set.");
+                    return;
+                }
+
+                var mp = new esri.geometry.Multipoint(this.spatialRef);
+                mp.points = cluster.points;
+                var area = geometryEngine.convexHull(mp, true); //use convex hull on the points to get the boundary
+                var areaAttr = lang.clone(attributes);
+                areaAttr.isClusterArea = true;
+                areaGraphic = new Graphic(area, null, areaAttr, null);
+                areaGraphic.setSymbol(this.clusterAreaRenderer.getSymbol(areaGraphic));
+                this.add(areaGraphic);
+                areaGraphic.hide();
+            }
+
+            attributes.isCluster = true;
             var graphic = new Graphic(point, null, attributes, null);
             cluster.graphic = graphic;
+            cluster.areaGraphic = areaGraphic;
             this.add(graphic);
 
         },
@@ -629,16 +666,28 @@
             var groupShape = this.surface.createGroup();
 
             //Note: dojo.addClass() doesn't seem to work on svg elements, that's why all the setAttributes for each shape.
-            groupShape.rawNode.setAttribute("class", "cluster-group cluster-object"); 
+            groupShape.rawNode.setAttribute("class", "cluster-group cluster-object");
             cluster.groupShape = groupShape;
 
             //append the group to this layer's node
             var layerNode = this.getNode();
             layerNode.appendChild(groupShape.rawNode);
-            
+
             var gShape = cluster.graphic.getShape();
             if (!gShape) {
                 return; //couldn't get the graphic shape that was just added, it's probably not visible on the map
+            }
+
+            //add an area graphic first if one has been set
+            var areaShape;
+            if (cluster.areaGraphic) {
+                if (this.clusterAreaDisplay === 'always') {
+                    cluster.areaGraphic.show();
+                }
+                areaShape = cluster.areaGraphic.getShape();
+                if (areaShape) {
+                    areaShape.rawNode.setAttribute("pointer-events", "none");
+                }
             }
 
             cluster.graphicShape = gShape;
@@ -652,8 +701,9 @@
                             .setFill(this.textSymbol.color);
             textShape.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
             groupShape.add(textShape);
-            
-            var self = this;
+            cluster.textShape = textShape;
+
+            var anims = [];
             //animate drawing of the cluster. 
             var create = fx.animateTransform({
                 duration: 200,
@@ -663,21 +713,34 @@
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+            anims.push(create);
 
-            this._playAnimations([create], this.animationMultipleType.combine);
-            
+            //animate area drawing if it is visible now
+            if (this.clusterAreaDisplay === 'always' && areaShape) {
+                var areaCenter = this._getShapeCenter(areaShape);
+                var areaCreate = fx.animateTransform({
+                    duration: 200,
+                    shape: areaShape,
+                    transform: [
+                        { name: "scaleAt", start: [0, 0, areaCenter.x, areaCenter.y], end: [1, 1, areaCenter.x, areaCenter.y] }
+                    ],
+                    onEnd: dojo.partial(this._animationEnd, this)
+                });
+                anims.push(areaCreate);
+            }
+
+            this._playAnimations(anims, this.animationMultipleType.combine);
+
             //add events
             if (this.flareShowMode === "mouse") {
                 this.graphicEvents.push(on(groupShape, "mouseleave", lang.hitch(this, this._clearActiveCluster)));
             }
-
         },
-           
-        
+
         _activateCluster: function (graphic) {
-            
+
             var cluster = this._getClusterFromGraphic(graphic);
-            if (!cluster) {  
+            if (!cluster) {
                 return;
             }
 
@@ -690,8 +753,22 @@
             var groupShape = cluster.groupShape;
             var graphicShape = cluster.graphicShape;
             groupShape.moveToFront();
-
             var center = this._getShapeCenter(graphicShape);
+
+            var scaleAnims = [];
+            if (this.clusterAreaDisplay === 'hover') {
+                cluster.areaGraphic.show();
+                var areaDisplay = fx.animateTransform({
+                    duration: 300,
+                    shape: cluster.areaGraphic.getShape(),
+                    transform: [
+                        { name: "scaleAt", start: [0, 0, center.x, center.y], end: [1, 1, center.x, center.y] }
+                    ],
+                    onEnd: dojo.partial(this._animationEnd, this)
+                });
+                scaleAnims.push(areaDisplay);
+            }
+
             var scaleUp = fx.animateTransform({
                 duration: 400,
                 shape: groupShape,
@@ -700,9 +777,10 @@
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+            scaleAnims.push(scaleUp);
 
-            this._playAnimations([scaleUp], this.animationMultipleType.combine);
-            
+            this._playAnimations(scaleAnims, this.animationMultipleType.combine);
+
             //Add applicable flare graphics
 
             //array to hold the flare object data
@@ -711,7 +789,7 @@
             //check if we need to create flares for the cluster
             var singleFlares = (cluster.singles && cluster.singles.length > 0) && (cluster.clusterCount <= this.displaySingleFlaresAtCount);
             var subTypeFlares = !singleFlares && (this.displaySubTypeFlares && this.subTypeFlareProperty && (cluster.subTypeCounts && cluster.subTypeCounts.length > 0));
-            
+
             if (!singleFlares && !subTypeFlares) {
                 return;
             }
@@ -781,7 +859,7 @@
                 var fo = this.flareObjects[i];
 
                 //Do a couple of things differently if this is a summary flare or not
-                var tooltipText = "";                
+                var tooltipText = "";
                 var isSummaryFlare = willContainSummaryFlare && i >= this.maxFlareCount - 1;
                 if (isSummaryFlare) {
                     fo.color = this.flareColor;
@@ -800,7 +878,7 @@
                 //get the position of the flare to be placed around the container circle.
                 var degree = parseInt(((360 / len) * i).toFixed());
                 degree = degree + degreeVariance;
-             
+
                 var radian = degree * (Math.PI / 180);
                 fo.degree = degree;
                 fo.radius = radius;
@@ -808,14 +886,14 @@
                     x: center.x + (conCircleRadius - radius) * Math.cos(radian),
                     y: center.y + (conCircleRadius - radius) * Math.sin(radian)
                 };
-              
+
                 //create a group to hold the flare objects
                 var flareGroup = groupShape.createGroup();
 
                 //add a graphic for the flare
                 var sym = lang.clone(flareSymbol);
                 sym.setColor(fo.color).setOutline(new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, this.textSymbol.color, fo.strokeWidth));
-            
+
                 //get the map point from the flare group center
                 var matrix = flareGroup.rawNode.getScreenCTM();
                 var pt = this.surface.rawNode.createSVGPoint();
@@ -830,6 +908,9 @@
                 var flareGraphic = new Graphic(fo.mapPoint, sym, attributes, null);
                 this.add(flareGraphic);
                 var flareCircle = flareGraphic.getShape();
+                if (!flareCircle) {
+                    return;
+                }
                 flareGroup.rawNode.appendChild(flareCircle.rawNode);
 
                 var flareText = flareGroup.createText({ x: fo.center.x, y: fo.center.y + (radius / 2 - 1), text: !isSummaryFlare ? fo.flareText : "...", align: 'middle' })
@@ -861,20 +942,19 @@
             this._playAnimations(stAnims, this.animationMultipleType.chain);
         },
 
-
-        _showFlareDetail: function(graphic) {
+        _showFlareDetail: function (graphic) {
             var flareObject = this._getFlareFromGraphic(graphic);
-            
+
             if (this.activeFlareObject && flareObject !== this.activeFlareObject) {
                 this._hideFlareDetail();
             }
 
             this.activeFlareObject = flareObject;
             this._createTooltip(flareObject.flareGroupShape);
-          
+
         },
 
-        _getInfoWindowAnchor: function(degree) {
+        _getInfoWindowAnchor: function (degree) {
             //set the anchor based on the degree, so the cluster is not covered by the info window
             if (degree === -180) {
                 return "left";
@@ -912,7 +992,7 @@
         },
 
         _clearActiveCluster: function (e) {
-          
+
             if (!this.activeCluster) {
                 return;
             }
@@ -935,7 +1015,20 @@
             var graphicShape = cluster.graphicShape;
 
             var center = this._getShapeCenter(graphicShape);
-            
+
+            var scaleAnims = [];
+            if (this.clusterAreaDisplay === 'hover') {
+                var areaHide = fx.animateTransform({
+                    duration: 600,
+                    shape: cluster.areaGraphic.getShape(),
+                    transform: [
+                        { name: "scaleAt", start: [1, 1, center.x, center.y], end: [0, 0, center.x, center.y] }
+                    ],
+                    onEnd: dojo.partial(this._animationEnd, this)
+                });
+                scaleAnims.push(areaHide);
+            }
+
             var scaleDown = fx.animateTransform({
                 duration: 400,
                 shape: groupShape,
@@ -944,9 +1037,10 @@
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
-            
-            this._playAnimations([scaleDown], this.animationMultipleType.combine);
-            
+            scaleAnims.push(scaleDown);
+
+            this._playAnimations(scaleAnims, this.animationMultipleType.combine);
+
             //destroy any flares
             for (var i = 0, len = this.graphics.length; i < len; i++) {
                 if (this.graphics[i].attributes.isFlare) {
@@ -959,7 +1053,6 @@
             this.activeCluster = null;
         },
 
-      
         _createTooltip: function (shape) {
 
             var tooltipLength = dojo.query(".tooltip-text", shape.rawNode).length;
@@ -997,7 +1090,7 @@
             var rectPadding = 2;
             var textBox = tooltipGroup.getBoundingBox();
             var rectShape = tooltipGroup.createRect({ x: textBox.x - rectPadding, y: textBox.y - rectPadding, width: textBox.width + (rectPadding * 2), height: textBox.height + (rectPadding * 2), r: 0 })
-                            .setFill(new dojo.Color([255,255,255,0.9]))
+                            .setFill(new dojo.Color([255, 255, 255, 0.9]))
                             .setStroke({ color: "#000", width: 0.5 });
             rectShape.rawNode.setAttribute("pointer-events", "none");
 
@@ -1029,7 +1122,7 @@
 
         //#region helper methods 
 
-        _getGraphicFromObject: function(obj) {
+        _getGraphicFromObject: function (obj) {
             //return the graphic from the obj which could be a single or cluster object
             for (var i = 0, len = this.graphics.length; i < len; i++) {
                 var g = this.graphics[i];
@@ -1049,7 +1142,6 @@
                     return cl;
                 }
             }
-
             return null;
         },
 
@@ -1088,11 +1180,11 @@
 
             //IE fix, if the animation shape contains a text element underneath it set the transform of the the text to 1. 
             //IE wasn't displaying most text elements after animations for some reason, there's probably a better fix for this though.
-            var textElement = dojo.query("> text", this.shape.rawNode).forEach(function(elem){
+            var textElement = dojo.query("> text", this.shape.rawNode).forEach(function (elem) {
                 var txt = new gfx.Text(elem);
                 txt.setTransform({ xx: 1, yy: 1 });
             });
-           
+
             //scope: 'this' is the animation that triggered the event, 'layer' is the flare cluster layer object instance
             for (var i = 0, len = layer.animationsRunning.length; i < len; i++) {
                 if (layer.animationsRunning[i] === this) {
