@@ -92,7 +92,7 @@
             this.animationMultipleType = {
                 combine: "combine",
                 chain: "chain"
-            }
+            };
 
             this.events = [];
             this.graphicEvents = [];
@@ -122,11 +122,7 @@
             this.events.push(on(this.map, "resize", lang.hitch(this, this._mapResize)));
 
             //add pan and zoom events to limit to recluster
-            this.events.push(on(this.map, "pan-start", lang.hitch(this, this.clear)));
-            this.events.push(on(this.map, "pan-end", lang.hitch(this, this._clusterData)));
-
-            this.events.push(on(this.map, "zoom-start", lang.hitch(this, this.clear)));
-            this.events.push(on(this.map, "zoom-end", lang.hitch(this, this._clusterData)));
+            this.events.push(on(this.map, "extent-change", lang.hitch(this, this._clusterData)));
 
             //Handle click event at the map level
             this.events.push(on(this.map, "click", lang.hitch(this, this._mapClick)));
@@ -250,7 +246,11 @@
             this.allData.push(obj);
 
             //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
-            web = esri.geometry.lngLatToXY(obj.x, obj.y);
+            if (this.spatialRef.isWebMercator()) {
+                web = [obj.x, obj.y];
+            } else {
+                web = esri.geometry.lngLatToXY(obj.x, obj.y);
+            }
 
             //filter by visible extent first
             if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
@@ -505,6 +505,8 @@
 
             console.time("client-cluster");
 
+            this.clear();
+
             //get an extent that is in web mercator to make sure it's flat for extent checking
             var webExtent = esri.geometry.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
             this._createClusterGrid(webExtent);
@@ -514,7 +516,11 @@
             for (var i = 0; i < dataLength; i++) {
                 obj = this.allData[i];
                 //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
-                web = esri.geometry.lngLatToXY(obj.x, obj.y);
+                if (this.spatialRef.isWebMercator()) {
+                    web = [obj.x, obj.y];
+                } else {
+                    web = esri.geometry.lngLatToXY(obj.x, obj.y);
+                }
 
                 //filter by visible extent first
                 if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
