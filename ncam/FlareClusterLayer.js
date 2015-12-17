@@ -2,7 +2,6 @@
   "dojo/_base/declare",
   "dojo/_base/lang",
   "dojo/_base/array",
-  "esri/Color",
   "dojo/on",
   "dojo/fx",
   "dojox/gfx",
@@ -10,22 +9,30 @@
   "dojox/gesture/tap",
 
   "esri/SpatialReference",
+  "esri/geometry/Extent",
+  "esri/geometry/Multipoint",
   "esri/geometry/Point",
   "esri/geometry/Polygon",
+  "esri/geometry/ScreenPoint",
+  "esri/geometry/webMercatorUtils",
+  "esri/geometry/geometryEngine",
   "esri/graphic",
+  
+  "esri/Color",
+  "esri/renderers/ClassBreaksRenderer",
+  "esri/symbols/Font",
   "esri/symbols/SimpleMarkerSymbol",
   "esri/symbols/SimpleFillSymbol",
   "esri/symbols/SimpleLineSymbol",
   "esri/symbols/TextSymbol",
-  "esri/renderers/ClassBreaksRenderer",
-  "esri/geometry/geometryEngine",
 
   "esri/dijit/PopupTemplate",
   "esri/layers/GraphicsLayer"
 ], function (
-  declare, lang, arrayUtils, Color, on, coreFx, gfx, fx, tap,
-  SpatialReference, Point, Polygon, Graphic, SimpleMarkerSymbol, SimpleFillSymbol, SimpleLineSymbol, TextSymbol,
-  ClassBreaksRenderer, geometryEngine, PopupTemplate, GraphicsLayer
+  declare, lang, arrayUtils, on, coreFx, gfx, fx, tap,
+  SpatialReference, Extent, Multipoint, Point, Polygon, ScreenPoint, webMercatorUtils, geometryEngine, Graphic,
+  Color, ClassBreaksRenderer, Font, SimpleMarkerSymbol, SimpleFillSymbol, SimpleLineSymbol, TextSymbol,
+  PopupTemplate, GraphicsLayer
 ) {
     return declare([GraphicsLayer], {
         constructor: function (options) {
@@ -36,11 +43,11 @@
               clusterRatio (number): default 75. When not pre clustered this is the ratio to divide the width and height of the map by which is used to draw up a grid to represent cluster areas. Experiment based on your data.
               displaySubTypeFlares (boolean): default false. Whether to dipslay flares for sub types (ie the count of a property). If this is true, then subTypeFlareProperty must also be set
               subTypeFlareProperty (string): default null. If specified and displaySubTypeFlares is true, layer will display flares that contain a count of the objects that have the same value for the configured property.
-              flareColor (dojo.Color) : default new Color([0, 0, 0, 0.5]). The color for flares.
+              flareColor (esri/Color) : default new Color([0, 0, 0, 0.5]). The color for flares.
               maxFlareCount (number): default 8. The max number of flares to display. If this is too high they may overlap, depends on the size of the cluster symbols.
               displaySingleFlaresAtCount (number): default 8. If a cluster contains this count or less it will display flare that represent single objects. If it contains greater than this count it will display sub type flares if they have been configured to be displayed.
               singleFlareTooltipProperty (string): default null. Property name to get the values for display in a single point flares tooltips.
-              textSymbol (esri.symbol.TextSymbol): default set below. The text symbol to use in clusters
+              textSymbol (esri/symbols/TextSymbol): default set below. The text symbol to use in clusters
               flareShowMode (string): default 'mouse'. Must be 'mouse' or 'tap'. On a mouse enabled device whether to show the flares on mouse enter and hide on mouse leave, or on tap / click. Devices with no mouse will behave like 'tap' anyway.
               clusteringBegin (function): default null. A basic callback function that get's fired when clustering is beginning. 
               clusteringComplete (function): default null. A basic callback function that get's fired when clustering is complete.  
@@ -63,9 +70,9 @@
             this.displaySingleFlaresAtCount = options.displaySingleFlaresAtCount || 8;
             this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || null;
             var defaultTextSymbol = new TextSymbol()
-                           .setColor(new dojo.Color([255, 255, 255]))
-                           .setAlign(esri.symbol.Font.ALIGN_START)
-                           .setFont(new esri.symbol.Font("10pt").setWeight(esri.symbol.Font.WEIGHT_BOLD).setFamily("calibri"))
+                           .setColor(new Color([255, 255, 255]))
+                           .setAlign(Font.ALIGN_START)
+                           .setFont(new Font("10pt").setWeight(Font.WEIGHT_BOLD).setFamily("calibri"))
                            .setVerticalAlignment("middle");
             this.textSymbol = options.textSymbol || defaultTextSymbol;
             this.flareShowMode = options.flareShowMode || "mouse";
@@ -92,7 +99,7 @@
             this.animationMultipleType = {
                 combine: "combine",
                 chain: "chain"
-            }
+            };
 
             this.events = [];
             this.graphicEvents = [];
@@ -122,11 +129,7 @@
             this.events.push(on(this.map, "resize", lang.hitch(this, this._mapResize)));
 
             //add pan and zoom events to limit to recluster
-            this.events.push(on(this.map, "pan-start", lang.hitch(this, this.clear)));
-            this.events.push(on(this.map, "pan-end", lang.hitch(this, this._clusterData)));
-
-            this.events.push(on(this.map, "zoom-start", lang.hitch(this, this.clear)));
-            this.events.push(on(this.map, "zoom-end", lang.hitch(this, this._clusterData)));
+            this.events.push(on(this.map, "extent-change", lang.hitch(this, this._clusterData)));
 
             //Handle click event at the map level
             this.events.push(on(this.map, "click", lang.hitch(this, this._mapClick)));
@@ -208,7 +211,7 @@
                 this.map.infoWindow.cluster = this.activeCluster;
 
                 //reset the geometry of the flare feature in the info window to be the actual location of the flared object, not the location of the flare graphic.
-                var p = esri.geometry.geographicToWebMercator(new Point(flareObject.singleData.x, flareObject.singleData.y, this.spatialRef));
+                var p = webMercatorUtils.geographicToWebMercator(new Point(flareObject.singleData.x, flareObject.singleData.y, this.spatialRef));
                 this.map.infoWindow.features[0].geometry = p;
                 this.map.infoWindow.show(sp);
 
@@ -237,7 +240,7 @@
             }
 
             //get an extent that is in web mercator to make sure it's flat for extent checking
-            var webExtent = esri.geometry.project(map.extent, new SpatialReference({ "wkid": 102100 }));
+            var webExtent = webMercatorUtils.project(map.extent, new SpatialReference({ "wkid": 102100 }));
             if (!this.gridClusters || this.gridClusters.length === 0) {
                 this._createClusterGrid();
             }
@@ -250,7 +253,11 @@
             this.allData.push(obj);
 
             //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
-            web = esri.geometry.lngLatToXY(obj.x, obj.y);
+            if (this.spatialRef.isWebMercator()) {
+                web = [obj.x, obj.y];
+            } else {
+                web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+            }
 
             //filter by visible extent first
             if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
@@ -503,10 +510,10 @@
                 this.clusteringBegin();
             }
 
-            console.time("client-cluster");
+            this.clear();
 
             //get an extent that is in web mercator to make sure it's flat for extent checking
-            var webExtent = esri.geometry.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
+            var webExtent = webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
             this._createClusterGrid(webExtent);
 
             var dataLength = this.allData.length;
@@ -514,7 +521,11 @@
             for (var i = 0; i < dataLength; i++) {
                 obj = this.allData[i];
                 //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
-                web = esri.geometry.lngLatToXY(obj.x, obj.y);
+                if (this.spatialRef.isWebMercator()) {
+                    web = [obj.x, obj.y];
+                } else {
+                    web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+                }
 
                 //filter by visible extent first
                 if (web[0] < webExtent.xmin || web[0] > webExtent.xmax || web[1] < webExtent.ymin || web[1] > webExtent.ymax) {
@@ -565,8 +576,6 @@
                 }
             }
 
-            console.timeEnd("client-cluster");
-
         },
 
         _createClusterGrid: function (webExtent) {
@@ -588,8 +597,8 @@
                 for (var j = 0; j < yCount; j++) {
                     gsymin = webExtent.ymin + (yh * j);
                     gsymax = gsymin + yh;
-                    var ext = new esri.geometry.Extent({ xmin: gsxmin, xmax: gsxmax, ymin: gsymin, ymax: gsymax });
-                    ext.setSpatialReference(new esri.SpatialReference({ "wkid": 102100 }));
+                    var ext = new Extent({ xmin: gsxmin, xmax: gsxmax, ymin: gsymin, ymax: gsymax });
+                    ext.setSpatialReference(new SpatialReference({ "wkid": 102100 }));
                     this.gridClusters.push({
                         extent: ext,
                         clusterCount: 0,
@@ -637,7 +646,7 @@
                     return;
                 }
 
-                var mp = new esri.geometry.Multipoint(this.spatialRef);
+                var mp = new Multipoint(this.spatialRef);
                 mp.points = cluster.points;
                 var area = geometryEngine.convexHull(mp, true); //use convex hull on the points to get the boundary
                 var areaAttr = lang.clone(attributes);
@@ -900,7 +909,7 @@
                 pt.x = fo.center.x;
                 pt.y = fo.center.y;
                 var screenPoint = pt.matrixTransform(matrix);
-                var sp = new esri.geometry.ScreenPoint(screenPoint.x, screenPoint.y);
+                var sp = new ScreenPoint(screenPoint.x, screenPoint.y);
                 fo.mapPoint = this.map.toMap(sp);
 
                 var attributes = fo.singleData ? lang.clone(fo.singleData) : {};
@@ -1090,7 +1099,7 @@
             var rectPadding = 2;
             var textBox = tooltipGroup.getBoundingBox();
             var rectShape = tooltipGroup.createRect({ x: textBox.x - rectPadding, y: textBox.y - rectPadding, width: textBox.width + (rectPadding * 2), height: textBox.height + (rectPadding * 2), r: 0 })
-                            .setFill(new dojo.Color([255, 255, 255, 0.9]))
+                            .setFill(new Color([255, 255, 255, 0.9]))
                             .setStroke({ color: "#000", width: 0.5 });
             rectShape.rawNode.setAttribute("pointer-events", "none");
 
