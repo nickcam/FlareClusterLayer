@@ -54,6 +54,8 @@
               clusterAreaDisplay (string): default null. Can be either 'always' or 'hover'. 'always' will constantly display the cluster area, 'hover' will only display it on hover of cluster object
                                                          The cluster area is a ploygon of the total area covered by the points in a cluster. If using preClustered data, each cluster object must contain a property called 'points' which is an array of points for every point in the cluster. example: cluster.points = [[x1, y1], [x2, y2], [x3, y3]];
               clusterAreaRenderer (Renderer): default null. This is required if clusterAreaDisplay is set. This can be set in options constructor object or by calling setRenderer as the second argument.
+              xPropertyName (string): default 'x'.  This is the name of the field in the dataset that represents the x coordinate.
+              yPropertyName (string): default 'y'.  This is the name of the field in the dataset that represents the y coordinate.
             */
 
             //set options from constructor parameter or set defaults
@@ -61,7 +63,7 @@
             this.spatialRef = options.spatialReference || new SpatialReference({ "wkid": 102100 });
             this.preClustered = options.preClustered === true;
             this.clusterRatio = options.clusterRatio || 75;
-
+           
             this.displaySubTypeFlares = options.displaySubTypeFlares === true;
             this.subTypeFlareProperty = options.subTypeFlareProperty || null;
 
@@ -83,6 +85,9 @@
 
             this.clusterAreaDisplay = options.clusterAreaDisplay;
             this.clusterAreaRenderer = options.clusterAreaRenderer;
+
+            this.xPropertyName = options.xPropertyName || 'x';
+            this.yPropertyName = options.yPropertyName || 'y';
 
             if (this.clusterAreaDisplay && (this.clusterAreaDisplay !== 'always' && this.clusterAreaDisplay !== 'hover')) {
                 console.error("clusterAreaDisplay can only be 'always' or 'hover'.");
@@ -252,11 +257,14 @@
 
             this.allData.push(obj);
 
+            var xVal = obj[this.xPropertyName];
+            var yVal = obj[this.yPropertyName];
+
             //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
             if (this.spatialRef.isWebMercator()) {
-                web = [obj.x, obj.y];
+                web = [xVal, yVal];
             } else {
-                web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+                web = webMercatorUtils.lngLatToXY(xVal, yVal);
             }
 
             //filter by visible extent first
@@ -273,12 +281,12 @@
                 }
 
                 //recalc the x and y of the cluster by averaging the points again
-                cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
-                cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
+                cl.x = cl.clusterCount > 0 ? (xVal + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : xVal;
+                cl.y = cl.clusterCount > 0 ? (yVal + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : yVal;
 
                 //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
                 if (this.clusterAreaDisplay) {
-                    cl.points.push([obj.x, obj.y]);
+                    cl.points.push([xVal, yVal]);
                 }
 
                 cl.clusterCount++;
@@ -517,14 +525,17 @@
             this._createClusterGrid(webExtent);
 
             var dataLength = this.allData.length;
-            var web, obj;
+            var web, obj, xVal, yVal;
             for (var i = 0; i < dataLength; i++) {
                 obj = this.allData[i];
+                xVal = obj[this.xPropertyName];
+                yVal = obj[this.yPropertyName];
+
                 //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
                 if (this.spatialRef.isWebMercator()) {
-                    web = [obj.x, obj.y];
+                    web = [xVal, yVal];
                 } else {
-                    web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+                    web = webMercatorUtils.lngLatToXY(xVal, yVal);
                 }
 
                 //filter by visible extent first
@@ -541,12 +552,12 @@
                     }
 
                     //recalc the x and y of the cluster by averaging the points again
-                    cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
-                    cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
+                    cl.x = cl.clusterCount > 0 ? (xVal + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : xVal;
+                    cl.y = cl.clusterCount > 0 ? (yVal + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : yVal;
 
                     //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
                     if (this.clusterAreaDisplay) {
-                        cl.points.push([obj.x, obj.y]);
+                        cl.points.push([xVal, yVal]);
                     }
 
                     cl.clusterCount++;
@@ -708,6 +719,7 @@
             var textShape = groupShape.createText({ x: shapeCenter.x, y: shapeCenter.y + (this.textSymbol.font.size / 2 - 2), text: cluster.clusterCount, align: 'middle' })
                             .setFont({ size: this.textSymbol.font.size, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight })
                             .setFill(this.textSymbol.color);
+            textShape.rawNode.setAttribute("class", "flare-text-counts");
             textShape.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
             groupShape.add(textShape);
             cluster.textShape = textShape;
@@ -909,7 +921,14 @@
                 pt.x = fo.center.x;
                 pt.y = fo.center.y;
                 var screenPoint = pt.matrixTransform(matrix);
-                var sp = new ScreenPoint(screenPoint.x, screenPoint.y);
+
+                //ScreenPoint needs to be relative to the top-left corner of the map control.
+                //The matrixTransform on pt gives us a point based on the screen coordinate system.
+                //Therefore if the map has a top offset applied to it the fo object will appear in 
+                //an incorrect spot on the map.  We must apply the offset to both the x and y points
+                //to ensure the point is relative to the map control.
+                var offsets = this.surface.rawNode.getBoundingClientRect();
+                var sp = new ScreenPoint(screenPoint.x - offsets.left, screenPoint.y - offsets.top);
                 fo.mapPoint = this.map.toMap(sp);
 
                 var attributes = fo.singleData ? lang.clone(fo.singleData) : {};
@@ -1135,7 +1154,7 @@
             //return the graphic from the obj which could be a single or cluster object
             for (var i = 0, len = this.graphics.length; i < len; i++) {
                 var g = this.graphics[i];
-                if (g.attributes.x === obj.x && g.attributes.y === obj.y) {
+                if (g.attributes.x === obj[this.xPropertyName] && g.attributes.y === obj[this.yPropertyName]) {
                     return g;
                 }
             }
@@ -1230,4 +1249,3 @@
         //#endregion
     });
 });
-
