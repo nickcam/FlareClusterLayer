@@ -708,6 +708,7 @@
             var textShape = groupShape.createText({ x: shapeCenter.x, y: shapeCenter.y + (this.textSymbol.font.size / 2 - 2), text: cluster.clusterCount, align: 'middle' })
                             .setFont({ size: this.textSymbol.font.size, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight })
                             .setFill(this.textSymbol.color);
+            textShape.rawNode.setAttribute("class", "flare-text-counts");
             textShape.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
             groupShape.add(textShape);
             cluster.textShape = textShape;
@@ -909,7 +910,14 @@
                 pt.x = fo.center.x;
                 pt.y = fo.center.y;
                 var screenPoint = pt.matrixTransform(matrix);
-                var sp = new ScreenPoint(screenPoint.x, screenPoint.y);
+
+                //ScreenPoint needs to be relative to the top-left corner of the map control.
+                //The matrixTransform on pt gives us a point based on the screen coordinate system.
+                //Therefore if the map has a top offset applied to it the fo object will appear in 
+                //an incorrect spot on the map.  We must apply the offset to both the x and y points
+                //to ensure the point is relative to the map control.
+                var offsets = this.surface.rawNode.getBoundingClientRect();
+                var sp = new ScreenPoint(screenPoint.x - offsets.left, screenPoint.y - offsets.top);
                 fo.mapPoint = this.map.toMap(sp);
 
                 var attributes = fo.singleData ? lang.clone(fo.singleData) : {};
