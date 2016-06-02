@@ -614,7 +614,7 @@
         _createSingle: function (single) {
             this.singles.push(single);
             delete single.graphic;
-            var point = new Point(single.x, single.y, this.spatialRef);
+            var point = new Point(single[this.xPropertyName], single[this.yPropertyName], this.spatialRef);
             var attributes = lang.clone(single);
             var graphic = new Graphic(point, null, attributes, null);
             single.graphic = graphic;
