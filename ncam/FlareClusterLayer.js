@@ -1,3 +1,4 @@
+//https://github.com/nickcam/FlareClusterLayer
 define([
   "dojo/_base/declare",
   "dojo/_base/lang",
@@ -216,7 +217,7 @@ define([
                 this.map.infoWindow.cluster = this.activeCluster;
 
                 //reset the geometry of the flare feature in the info window to be the actual location of the flared object, not the location of the flare graphic.
-                var p = webMercatorUtils.geographicToWebMercator(new Point(flareObject.singleData.x, flareObject.singleData.y, this.spatialRef));
+                var p = webMercatorUtils.geographicToWebMercator(new Point(flareObject.singleData[this.xPropertyName], flareObject.singleData[this.yPropertyName], this.spatialRef));
                 this.map.infoWindow.features[0].geometry = p;
                 this.map.infoWindow.show(sp);
 
@@ -227,7 +228,8 @@ define([
         //Each object passed in must contain an x and y property. 
         //Data should also contain whatever property is set in singleFlareTooltipProperty, so the flare tooltip has something to display for summary flares if needed
         add: function (p) {
-
+           
+             
             // if passed a graphic, just use the base GraphicsLayer's add method
             if (p.declaredClass) {
                 this.inherited(arguments);
@@ -1154,7 +1156,7 @@ define([
             //return the graphic from the obj which could be a single or cluster object
             for (var i = 0, len = this.graphics.length; i < len; i++) {
                 var g = this.graphics[i];
-                if (g.attributes.x === obj[this.xPropertyName] && g.attributes.y === obj[this.yPropertyName]) {
+                if (g.attributes[this.xPropertyName] === obj[this.xPropertyName] && g.attributes[this.yPropertyName] === obj[this.yPropertyName]) {
                     return g;
                 }
             }
@@ -1185,7 +1187,7 @@ define([
             //return the obj which could be a single or cluster object, based on the graphic
             for (var i = 0, len = this.flareObjects.length; i < len; i++) {
                 var fl = this.flareObjects[i];
-                if (fl.singleData && (fl.singleData.x === graphic.attributes.x && fl.singleData.y === graphic.attributes.y)) {
+                if (fl.singleData && (fl.singleData[this.xPropertyName] === graphic.attributes[this.xPropertyName] && fl.singleData[this.yPropertyName] === graphic.attributes[this.yPropertyName])) {
                     return fl;
                 }
 
@@ -1249,3 +1251,4 @@ define([
         //#endregion
     });
 });
+
