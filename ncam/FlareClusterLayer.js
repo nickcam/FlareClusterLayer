@@ -57,6 +57,7 @@ define([
               clusterAreaRenderer (Renderer): default null. This is required if clusterAreaDisplay is set. This can be set in options constructor object or by calling setRenderer as the second argument.
               xPropertyName (string): default 'x'.  This is the name of the field in the dataset that represents the x coordinate.
               yPropertyName (string): default 'y'.  This is the name of the field in the dataset that represents the y coordinate.
+              idPropertyName (string): default null. This is the name of the field in the dataset that represents a unique id which can be used to identify the flare.  This is usefull when you may have multiple points with the same lat/long.
             */
 
             //set options from constructor parameter or set defaults
@@ -89,6 +90,7 @@ define([
 
             this.xPropertyName = options.xPropertyName || 'x';
             this.yPropertyName = options.yPropertyName || 'y';
+            this.idPropertyName = options.idPropertyName || null;
 
             if (this.clusterAreaDisplay && (this.clusterAreaDisplay !== 'always' && this.clusterAreaDisplay !== 'hover')) {
                 console.error("clusterAreaDisplay can only be 'always' or 'hover'.");
@@ -435,12 +437,15 @@ define([
 
 
         _infoWindowShow: function (e) {
-            for (var i = 0; i < this.map.infoWindow.features.length; i++) {
-                if (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea) {
-                    this.map.infoWindow.hide(); //if a cluster never show an info window
-                    return;
-                }
-            }
+           if(typeof(this.map.infoWindow.features !== 'undefined') && this.map.infoWindow.features !== null)
+           {
+               for (var i = 0; i < this.map.infoWindow.features.length; i++) {
+                   if (typeof(this.map.infoWindow.features[i].attributes) !== 'undefined' && (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea)) {
+                       this.map.infoWindow.hide(); //if a cluster never show an info window
+                       return;
+                   }
+               }
+           }
         },
 
         _infoWindowHide: function (e) {
@@ -523,7 +528,16 @@ define([
             this.clear();
 
             //get an extent that is in web mercator to make sure it's flat for extent checking
-            var webExtent = webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
+            //The webextent will need to be normalized since panning over the international dateline will cause
+            //cause the extent to shift outside the -180 to 180 degree window.  If we don't normalize then the
+            //clusters will not be drawn if the map pans over the international dateline.
+            var normalizedWebExtent = webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })).normalize();
+            var webExtent = normalizedWebExtent[0];
+            if(normalizedWebExtent.length > 1)
+            {
+               webExtent = webExtent.union(normalizedWebExtent[1]);
+            }
+
             this._createClusterGrid(webExtent);
 
             var dataLength = this.allData.length;
@@ -1187,7 +1201,8 @@ define([
             //return the obj which could be a single or cluster object, based on the graphic
             for (var i = 0, len = this.flareObjects.length; i < len; i++) {
                 var fl = this.flareObjects[i];
-                if (fl.singleData && (fl.singleData[this.xPropertyName] === graphic.attributes[this.xPropertyName] && fl.singleData[this.yPropertyName] === graphic.attributes[this.yPropertyName])) {
+                if (fl.singleData && (fl.singleData[this.xPropertyName] === graphic.attributes[this.xPropertyName] && fl.singleData[this.yPropertyName] === graphic.attributes[this.yPropertyName]) &&
+                   (this.idPropertyName === null || fl.singleData[this.idPropertyName] === graphic.attributes[this.idPropertyName])) {
                     return fl;
                 }
 
