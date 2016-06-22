@@ -1,4 +1,3 @@
-//https://github.com/nickcam/FlareClusterLayer
 define([
   "dojo/_base/declare",
   "dojo/_base/lang",
@@ -18,7 +17,7 @@ define([
   "esri/geometry/webMercatorUtils",
   "esri/geometry/geometryEngine",
   "esri/graphic",
-  
+
   "esri/Color",
   "esri/renderers/ClassBreaksRenderer",
   "esri/symbols/Font",
@@ -64,7 +63,7 @@ define([
             this.spatialRef = options.spatialReference || new SpatialReference({ "wkid": 102100 });
             this.preClustered = options.preClustered === true;
             this.clusterRatio = options.clusterRatio || 75;
-           
+
             this.displaySubTypeFlares = options.displaySubTypeFlares === true;
             this.subTypeFlareProperty = options.subTypeFlareProperty || null;
 
@@ -162,7 +161,7 @@ define([
                 }
             }
 
-            for (var i = 0, len = this.graphicEvents.length; i < len; i++) {
+            for (i = 0, len = this.graphicEvents.length; i < len; i++) {
                 if (this.graphicEvents[i]) {
                     this.graphicEvents[i].remove();
                 }
@@ -228,8 +227,8 @@ define([
         //Each object passed in must contain an x and y property. 
         //Data should also contain whatever property is set in singleFlareTooltipProperty, so the flare tooltip has something to display for summary flares if needed
         add: function (p) {
-           
-             
+
+
             // if passed a graphic, just use the base GraphicsLayer's add method
             if (p.declaredClass) {
                 this.inherited(arguments);
@@ -580,7 +579,7 @@ define([
                 }
             }
 
-            for (var i = 0, len = this.gridClusters.length; i < len; i++) {
+            for (i = 0, len = this.gridClusters.length; i < len; i++) {
                 if (this.gridClusters[i].clusterCount === 1) {
                     this._createSingle(this.gridClusters[i].singles[0]);
                 }
@@ -621,7 +620,6 @@ define([
                     });
                 }
             }
-
         },
 
         _createSingle: function (single) {
@@ -721,7 +719,7 @@ define([
             var textShape = groupShape.createText({ x: shapeCenter.x, y: shapeCenter.y + (this.textSymbol.font.size / 2 - 2), text: cluster.clusterCount, align: 'middle' })
                             .setFont({ size: this.textSymbol.font.size, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight })
                             .setFill(this.textSymbol.color);
-            textShape.rawNode.setAttribute("class", "flare-text-counts");
+            textShape.rawNode.setAttribute("class", "cluster-text-counts");
             textShape.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
             groupShape.add(textShape);
             cluster.textShape = textShape;
@@ -800,6 +798,7 @@ define([
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+
             scaleAnims.push(scaleUp);
 
             this._playAnimations(scaleAnims, this.animationMultipleType.combine);
@@ -855,7 +854,7 @@ define([
                     return b.count - a.count;
                 });
 
-                for (var i = 0, len = subTypes.length; i < len; i++) {
+                for (i = 0, len = subTypes.length; i < len; i++) {
                     this.flareObjects.push({
                         tooltipText: subTypes[i].count + " - " + subTypes[i].name,
                         flareText: subTypes[i].count,
@@ -872,7 +871,7 @@ define([
             //if there's an even amount of flares, position the first flare to the left, minus 180 from degree to do this.
             //for an add amount position the first flare on top, -90 to do this. Looks more symmetrical this way.
             var degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
-            for (var i = 0, len = flareCount; i < len; i++) {
+            for (i = 0, len = flareCount; i < len; i++) {
 
                 //exit if we've hit the maxFlareCount - a summary would have been created on the last one
                 if (i >= this.maxFlareCount) {
@@ -943,10 +942,15 @@ define([
                 }
                 flareGroup.rawNode.appendChild(flareCircle.rawNode);
 
-                var flareText = flareGroup.createText({ x: fo.center.x, y: fo.center.y + (radius / 2 - 1), text: !isSummaryFlare ? fo.flareText : "...", align: 'middle' })
-                        .setFill(this.textSymbol.color)
-                        .setFont({ size: !isSummaryFlare ? 7 : 10, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight });
-                flareText.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
+                if (fo.flareText) {
+                    //if displaying text in the flare, 
+                    flareGroup.flareText = {
+                        location: { x: fo.center.x, y: fo.center.y + (radius / 2 - 1) },
+                        text: !isSummaryFlare ? fo.flareText : "...",
+                        textSize: !isSummaryFlare ? 7 : 10
+                    };
+                }
+
                 flareGroup.setTransform({ xx: 0, yy: 0 });//scale to 0 to start with
                 flareGroup.rawNode.setAttribute("class", "flare-object cluster-object");
                 flareCircle.rawNode.setAttribute("class", "flare-graphic cluster-object");
@@ -970,6 +974,7 @@ define([
             }
 
             this._playAnimations(stAnims, this.animationMultipleType.chain);
+
         },
 
         _showFlareDetail: function (graphic) {
@@ -1056,6 +1061,7 @@ define([
                     ],
                     onEnd: dojo.partial(this._animationEnd, this)
                 });
+
                 scaleAnims.push(areaHide);
             }
 
@@ -1067,6 +1073,7 @@ define([
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+
             scaleAnims.push(scaleDown);
 
             this._playAnimations(scaleAnims, this.animationMultipleType.combine);
@@ -1125,7 +1132,7 @@ define([
             rectShape.rawNode.setAttribute("pointer-events", "none");
 
             shape.moveToFront();
-            for (var i = 0, len = textShapes.length; i < len; i++) {
+            for (i = 0, len = textShapes.length; i < len; i++) {
                 textShapes[i].moveToFront();
             }
 
@@ -1205,17 +1212,33 @@ define([
             return { x: x, y: y };
         },
 
-
         _animationEnd: function (layer) {
+            //scope: 'this' is the animation that triggered the event, 'layer' is the flare cluster layer object instance
 
-            //IE fix, if the animation shape contains a text element underneath it set the transform of the the text to 1. 
-            //IE wasn't displaying most text elements after animations for some reason, there's probably a better fix for this though.
-            var textElement = dojo.query("> text", this.shape.rawNode).forEach(function (elem) {
-                var txt = new gfx.Text(elem);
-                txt.setTransform({ xx: 1, yy: 1 });
+            //IE10 and below Fix - have to manually set transform back to 1 on elements. They don't seem to appear all of the time again after beign animated back to 
+            //a scale of 1. IE sucks.
+            dojo.query("> *", this.shape.rawNode).forEach(function (elem) {
+                if (!elem.__gfxObject__) return;
+                //put this in a slight timeout, otherwise the display can get a tiny bit jittery.
+                setTimeout(function () {
+                    if (elem.__gfxObject__) {
+                        elem.__gfxObject__.setTransform({ xx: 1, yy: 1 });
+                    }
+                }, 50);
             });
 
-            //scope: 'this' is the animation that triggered the event, 'layer' is the flare cluster layer object instance
+            //Here's a hack for Edge. Good to see there's no need to do special hacks for MS browsers anymore. WTF.
+            //Have to add the flare text after the flare group animation otherwise Edge just reloads the page and dies for some reason?
+            if (this.shape.flareText) {
+                var flareText = this.shape.createText({ x: this.shape.flareText.location.x, y: this.shape.flareText.location.y, text: this.shape.flareText.text, align: 'middle' })
+                            .setFill(layer.textSymbol.color)
+                            .setFont({ size: this.shape.flareText.textSize, family: layer.textSymbol.font.family, weight: layer.textSymbol.font.weight });
+
+                flareText.rawNode.setAttribute("class", "flare-text-counts");
+                flareText.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
+                flareText.moveToFront();
+            }
+
             for (var i = 0, len = layer.animationsRunning.length; i < len; i++) {
                 if (layer.animationsRunning[i] === this) {
                     layer.animationsRunning.splice(i, 1);
@@ -1251,4 +1274,3 @@ define([
         //#endregion
     });
 });
-
