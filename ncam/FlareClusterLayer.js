@@ -436,15 +436,14 @@ define([
 
 
         _infoWindowShow: function (e) {
-           if(typeof(this.map.infoWindow.features !== 'undefined') && this.map.infoWindow.features !== null)
-           {
-               for (var i = 0; i < this.map.infoWindow.features.length; i++) {
-                   if (typeof(this.map.infoWindow.features[i].attributes) !== 'undefined' && (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea)) {
-                       this.map.infoWindow.hide(); //if a cluster never show an info window
-                       return;
-                   }
-               }
-           }
+            if (typeof (this.map.infoWindow.features !== 'undefined') && this.map.infoWindow.features !== null) {
+                for (var i = 0; i < this.map.infoWindow.features.length; i++) {
+                    if (typeof (this.map.infoWindow.features[i].attributes) !== 'undefined' && (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea)) {
+                        this.map.infoWindow.hide(); //if a cluster never show an info window
+                        return;
+                    }
+                }
+            }
         },
 
         _infoWindowHide: function (e) {
@@ -530,11 +529,15 @@ define([
             //The webextent will need to be normalized since panning over the international dateline will cause
             //cause the extent to shift outside the -180 to 180 degree window.  If we don't normalize then the
             //clusters will not be drawn if the map pans over the international dateline.
-            var normalizedWebExtent = webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })).normalize();
+            var webExtent = !this.map.extent.spatialReference.isWebMercator() ? webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })) : this.map.extent;
+            var normalizedWebExtent = webExtent.normalize();
             var webExtent = normalizedWebExtent[0];
-            if(normalizedWebExtent.length > 1)
-            {
-               webExtent = webExtent.union(normalizedWebExtent[1]);
+            if (normalizedWebExtent.length > 1) {
+                webExtent = webExtent.union(normalizedWebExtent[1]);
+                this.extentIsUnioned = true;
+            }
+            else {
+                this.extentIsUnioned = true;
             }
 
             this._createClusterGrid(webExtent);
@@ -609,6 +612,11 @@ define([
             //get the total amount of grid spaces based on the height and width of the map (divide it by clusterRatio) - then get the degrees for x and y 
             var xCount = Math.round(this.map.width / this.clusterRatio);
             var yCount = Math.round(this.map.height / this.clusterRatio);
+
+            //if the extent has been unioned due to normalization, double the count of x in the cluster grid as the unioning will halve it.
+            if (this.extentIsUnioned) {
+                xCount *= 2;
+            }
 
             var xw = (webExtent.xmax - webExtent.xmin) / xCount;
             var yh = (webExtent.ymax - webExtent.ymin) / yCount;
