@@ -292,21 +292,21 @@ define([
                     cl.points.push([xVal, yVal]);
                 }
 
-                cl.clusterCount++;
+                cl.clusterCount++; 
 
                 var subTypeExists = false;
                 for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
-                    if (cl.subTypeCounts[s].name === obj.facilityType) {
+                    if (cl.subTypeCounts[s].name === obj[this.subTypeFlareProperty]) {
                         cl.subTypeCounts[s].count++;
                         subTypeExists = true;
                         break;
                     }
                 }
                 if (!subTypeExists) {
-                    cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
+                    cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
                 }
 
-                cl.singles.push(obj);
+                cl.singles.push(obj); 
 
                 if (cl.clusterCount === 1) {
                     //this was the only point in this cluster area so add a single
@@ -582,14 +582,14 @@ define([
 
                     var subTypeExists = false;
                     for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
-                        if (cl.subTypeCounts[s].name === obj.facilityType) {
+                        if (cl.subTypeCounts[s].name === obj[this.subTypeFlareProperty]) {
                             cl.subTypeCounts[s].count++;
                             subTypeExists = true;
                             break;
                         }
                     }
                     if (!subTypeExists) {
-                        cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
+                        cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
                     }
 
                     cl.singles.push(obj);
