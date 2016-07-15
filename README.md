@@ -29,7 +29,7 @@ I used typescript to build the v4 version (because typescript rocks), so you cou
 If you want to run the repo locally, do an 
 npm install
 
-Also run the default gulp task (or at least the copy-dojo-typings task) to make sure the dojo typings get copied into the typings folder, dojo typings have an npm package but aren't compatible with the typings package.
+Also run the default gulp task (or at least the copy-dojo-typings task) to make sure the dojo typings get copied into the typings folder, dojo typings have an npm package of thier own but can't be included using typings tool.
 
 If you plan to include the .ts file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
 For example, to use it in an angular 2 project you would change the imports to be -
