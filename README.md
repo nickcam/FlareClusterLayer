@@ -33,12 +33,11 @@ Also run the default gulp task (or at least the copy-dojo-typings task) to make 
 
 If you plan to include the .ts file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
 For example, to use it in an angular 2 project you would change the imports to be -
-'''
+```
 import GraphicsLayer from "esri/layers/GraphicsLayer";
-'''  
-That is assuming you're using esri-system-js to load arcgis api using systemjs.
+```  
+That is assuming you're using [esri-system-js](https://github.com/Esri/esri-system-js) to load the arcgis api using systemjs.
 
-You would probably also need to remove the reference to the index.d.ts from typings at the top of the file, and just include the required typings file however your project does.
+You would probably also need to remove the reference to the index.d.ts from typings at the top of the file, and just include the required typings file however your project already does.
 
-In the SceneView I used an external renderer to do the custom drawing...I think this is the way to go - but my webgl knowledge is non existent so to draw the flares I used an svg element 
-that moves around depending on the cluster selected and just add svg nodes to that. It works fine, but anyone with some webgl skills is welcome to fix that up so it's all in the webgl render pipeline.
+In the SceneView I used an external renderer to do the custom drawing...I think this is the way to go - but my webgl knowledge is non existent so to draw the flares I used an svg element that moves around depending on the cluster selected and just add svg nodes to it. It works fine, but anyone with some webgl skills is welcome to fix that up so it's all in the webgl render pipeline using webgl objects.
