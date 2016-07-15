@@ -531,11 +531,8 @@ define([
             //clusters will not be drawn if the map pans over the international dateline.
             var webExtent = !this.map.extent.spatialReference.isWebMercator() ? webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })) : this.map.extent;
             var normalizedWebExtent = webExtent.normalize();
-<<<<<<< HEAD:ncam/FlareClusterLayer_v3.js
-            webExtent = normalizedWebExtent[0];
-=======
-            var webExtent = normalizedWebExtent[0];
->>>>>>> 3f1e892a39c95392d28e00c64f06323247afa410:ncam/FlareClusterLayer.js
+            webExtent = normalizedWebExtent[0];            
+
             if (normalizedWebExtent.length > 1) {
                 webExtent = webExtent.union(normalizedWebExtent[1]);
                 this.extentIsUnioned = true;
