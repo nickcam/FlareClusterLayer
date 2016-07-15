@@ -18,7 +18,7 @@ The clustering is performed using a grid system based on the current extent, the
 - Configure the symbology to be whatever you want by using a renderer for the clusters and single symbols and an optional second renderer for the cluster boundaries.
 
 All of the options are explained in the constructor of the layer so just check out the code for a full explanation. 
-A demo is here: http://flareclusterlayer.azurewebsites.net/
+A demo is here: http://flareclusterlayer.azurewebsites.net/index.html
 
 Have a look at index.html for an example of how to use. It's the same as the demo link. 
 

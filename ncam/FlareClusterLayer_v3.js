@@ -1,4 +1,4 @@
-﻿define([
+define([
   "dojo/_base/declare",
   "dojo/_base/lang",
   "dojo/_base/array",
@@ -292,7 +292,7 @@
                     cl.points.push([xVal, yVal]);
                 }
 
-                cl.clusterCount++;
+                cl.clusterCount++; 
 
                 var subTypeExists = false;
                 for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
@@ -306,7 +306,7 @@
                     cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
                 }
 
-                cl.singles.push(obj);
+                cl.singles.push(obj); 
 
                 if (cl.clusterCount === 1) {
                     //this was the only point in this cluster area so add a single
@@ -531,7 +531,11 @@
             //clusters will not be drawn if the map pans over the international dateline.
             var webExtent = !this.map.extent.spatialReference.isWebMercator() ? webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })) : this.map.extent;
             var normalizedWebExtent = webExtent.normalize();
+<<<<<<< HEAD:ncam/FlareClusterLayer_v3.js
             webExtent = normalizedWebExtent[0];
+=======
+            var webExtent = normalizedWebExtent[0];
+>>>>>>> 3f1e892a39c95392d28e00c64f06323247afa410:ncam/FlareClusterLayer.js
             if (normalizedWebExtent.length > 1) {
                 webExtent = webExtent.union(normalizedWebExtent[1]);
                 this.extentIsUnioned = true;
