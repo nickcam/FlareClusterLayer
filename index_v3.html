@@ -121,8 +121,8 @@
             async: true,
             tlmSiblingOfDojo: false,
             packages: [{
-                name: "ncam",
-                location: location.pathname.replace(/\/[^/]+$/, '') + "/ncam"
+                name: "fcl",
+                location: location.pathname.replace(/\/[^/]+$/, '') + "/fcl"
             }]
         };
     </script>
@@ -141,7 +141,7 @@
         var displaySingleFlaresAtCount = 10;
         var areaDisplayMode = "hover";
 
-        require(["esri/map", "esri/layers/graphics", "esri/graphic", "esri/dijit/PopupTemplate", "ncam/FlareClusterLayer_v3",
+        require(["esri/map", "esri/layers/graphics", "esri/graphic", "esri/dijit/PopupTemplate", "fcl/FlareClusterLayer_v3",
                "esri/symbols/SimpleMarkerSymbol", "esri/symbols/SimpleLineSymbol", "esri/symbols/SimpleFillSymbol", "esri/renderers/ClassBreaksRenderer",
                 "dojo/ready", "dojo/json", "dojo/dom", "dojo/on", "dojo/text!./data.json"],
         function (Map, GraphicsLayer, Graphic, PopupTemplate, FlareClusterLayer, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, ClassBreaksRenderer, ready, JSON, dom, on, data) {
