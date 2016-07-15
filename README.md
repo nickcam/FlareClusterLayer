@@ -3,7 +3,7 @@ A custom graphics layer that inherits from ArcGIS js graphics layer. Clustering 
 
 The clustering is performed using a grid system based on the current extent, the pixel dimensions of the map and a configurable cluster ratio that can be set to suit a data set.
 
-Different versions for 3.x and 4.0.
+Support for both for 3.x and 4.0 arcgis js apis.
 
 ## Features
 
@@ -24,7 +24,7 @@ A demo is here: http://flareclusterlayer.azurewebsites.net/index_v3.html and her
 
 ## api v4.0 notes
 
-I used typescript to build the v4 version (because typescript rocks), so you could either use the typecsript version and compile it to js in your own project or just use the compiled version in the ncam folder, same way the demo does.
+I used typescript to build the v4 version (because typescript rocks), so you could either use the typecsript version and compile it to js in your own project or just use the compiled version in the fcl folder, same way the demo does.
 
 If you want to run the repo locally, do an 
 npm install
@@ -41,4 +41,4 @@ That is assuming you're using esri-system-js to load arcgis api using systemjs.
 You would probably also need to remove the reference to the index.d.ts from typings at the top of the file, and just include the required typings file however your project does.
 
 In the SceneView I used an external renderer to do the custom drawing...I think this is the way to go - but my webgl knowledge is non existent so to draw the flares I used an svg element 
-that moves around depending on the cluster selected and just add svg nodes to that. It seems to work fine, but anyone with some webgl skills is welcome to fix that up so it's all in the webgl render pipeline.
+that moves around depending on the cluster selected and just add svg nodes to that. It works fine, but anyone with some webgl skills is welcome to fix that up so it's all in the webgl render pipeline.
