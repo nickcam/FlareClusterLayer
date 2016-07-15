@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "amd",
+    "noImplicitAny": false,
+    "noEmitOnError": true,
+    "removeComments": false,
+    "target": "es5",
+    "outDir": "ncam",
+    "moduleResolution": "classic",
+    "sourceMap": true
+  }, 
+  "files": [
+    "typescript/FlareClusterLayer_v4.ts"
+  ]
+}

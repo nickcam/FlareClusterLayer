@@ -45,6 +45,7 @@ build/
 *.pidb
 *.log
 *.scc
+*.sln
 
 # Visual C++ cache files
 ipch/
@@ -154,3 +155,11 @@ $RECYCLE.BIN/
 
 # Mac desktop service store files
 .DS_Store
+
+#node-modules
+node_modules/
+
+#ignore typings
+typings/
+
+.vscode/

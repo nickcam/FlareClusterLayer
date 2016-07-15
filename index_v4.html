@@ -1,0 +1,451 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+
+    <title>Flare Cluster Layer Example</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Calibri;
+            overflow: hidden;
+        }
+
+        #container, .view {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            position: relative;
+        }
+
+            .view.hidden {
+                position: absolute;
+                z-index: -10;
+            }
+
+       
+        #header {
+            position: absolute;
+            z-index: 1000;
+            top: 0px;
+            left: 0px;
+            height: 15px;
+            width: 100%;
+            font-weight: bold;
+            padding: 15px 10px;
+        }
+
+          
+        #header a {
+            margin-left: 20px;
+            color: #FFF;
+        }
+
+        #header, #menu {
+            position: absolute;
+            z-index: 1000;
+            background-color: rgba(0, 5, 43, 0.7);
+            color: #FFF;
+            font-size: 0.8em;
+        }
+
+        #menu {
+            top: 45px;
+            left: 0;
+            bottom: 0;
+            width: 165px;
+            padding: 5px 10px;
+            border-top: 1px Solid #FFF;
+            transition: left ease 0.5s;
+        }
+
+            #menu > div {
+                margin-top: 10px;
+            }
+
+            #menu select {
+                height: 25px;
+                border-radius: 5px;
+                margin-right: 20px;
+            }
+
+        #menu.closed {
+            left: -190px;
+            transition: left ease 0.5s;
+        }
+
+        .menu-hamburger {
+            position: relative;
+            display: inline-block;
+            width: 1.25em;
+            height: 0.8em;
+            margin-right: 0.3em;
+            border-top: 0.2em solid #fff;
+            border-bottom: 0.2em solid #fff;
+            cursor: pointer;
+        }
+
+        .menu-hamburger:before {
+            content: "";
+            position: absolute;
+            top: 0.3em;
+            left: 0px;
+            width: 100%;
+            border-top: 0.2em solid #fff;
+        }
+
+        #close-menu {
+            cursor: pointer;
+            position: absolute;
+            right: 5px;
+            top: 0;
+            font-size: 1.5em;
+        }
+
+    </style>
+
+
+    <script>
+        var dojoConfig = {
+            async: true, 
+            tlmSiblingOfDojo: false,
+            packages: [{
+                name: "ncam",
+                location: location.pathname.replace(/\/[^/]+$/, '') + "/ncam"
+            }]
+        };
+    </script>
+
+    <script src="https://js.arcgis.com/4.0/"></script>
+
+    <script type="text/javascript">
+
+        var map,
+            mapView,
+            sceneView,
+            activeView,
+            graphics,
+            clusterLayer;
+
+       //set some defaults
+        var preClustered = true;
+        var maxSingleFlareCount = 8;
+        //var areaDisplayMode = null;
+        var areaDisplayMode = "activated";
+        //var areaDisplayMode = "always";
+
+        require(["esri/Map",
+                 "esri/Color",
+                 "esri/views/MapView",
+                 "esri/views/SceneView",
+                 "esri/geometry/Extent",
+                 "esri/geometry/SpatialReference",
+                 "esri/geometry/Point",
+                 "esri/PopupTemplate",
+                 "esri/layers/GraphicsLayer",
+                 "esri/Graphic",
+                 "esri/symbols/SimpleMarkerSymbol",
+                 "esri/symbols/SimpleLineSymbol",
+                 "esri/symbols/SimpleFillSymbol",
+                 "esri/symbols/TextSymbol",
+                 "esri/symbols/TextSymbol3DLayer",
+                 "esri/symbols/Font",
+                 "esri/renderers/ClassBreaksRenderer",
+                 "esri/core/watchUtils",
+                 "esri/geometry/support/webMercatorUtils",
+                 "ncam/FlareClusterLayer_v4",
+                 "dojo",
+                 "dojo/ready",
+                 "dojo/json",
+                 "dojo/dom",
+                 "dojo/on",
+                 "dojo/dom-attr",
+                 "dojo/text!./data.json"],
+        function (Map, Color, MapView, SceneView, Extent, SpatialReference, Point, PopupTemplate, GraphicsLayer, Graphic, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, TextSymbol, TextSymbol3DLayer, Font, ClassBreaksRenderer,
+                   watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, data) {
+
+            ready(function () {
+
+                document.getElementById("area-mode").value = areaDisplayMode;
+
+                map = new Map({
+                    basemap: "gray"
+                });
+
+
+                mapView = new MapView({
+                    map: map,
+                    container: "mapView",
+                    center: [133, -25],
+                    zoom: 4,
+                    constraints: { minZoom: 3 },
+                    ui: { components: ["compass", "zoom"] }
+                });
+                mapView.ui.move("zoom", "bottom-right");
+                mapView.ui.move("compass", "bottom-right");
+
+                sceneView = new SceneView({
+                    container: "sceneView",
+                    map: map,
+                    center: [133, -25],
+                    zoom: 4,
+                    ui: { components: ["compass", "zoom"] }
+                });
+                sceneView.ui.move("zoom", "bottom-right");
+                sceneView.ui.move("compass", "bottom-right");
+
+                //activeView = sceneView;
+                activeView = mapView;
+
+                //load up the dummy data
+                var allData = JSON.parse(data);
+
+                mapView.then(function (e) {
+                    console.log('map view loaded');
+                    if (activeView === mapView) {
+                        initLayer(allData);
+                    }
+                })
+                .otherwise(function(e){
+                    console.error("failed to load MapView " + e);
+                });
+
+                sceneView.then(function (e) {
+                    console.log('scene view loaded');
+                    if (activeView === sceneView) {
+                        initLayer(allData);
+                    }
+                })
+                .otherwise(function(e) {
+                    console.warn("Cannot load scene view - webgl may not be supported by this browser " + e);
+                    domAttr.set(dom.byId("view-mode"), "disabled", true);
+                });
+
+                if (activeView === mapView) {
+                    dojo.addClass(sceneView.container, "hidden");
+                }
+                else {
+                    dojo.addClass(mapView.container, "hidden");
+                }
+            });
+
+            function initLayer(data) {
+
+                //init the layer, more options are available and explained in the cluster layer constructor
+              
+                //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
+                var defaultSym = new SimpleMarkerSymbol({
+                    size: 6,
+                    color: "#FF0000",
+                    outline: null
+                });
+
+                var renderer = new ClassBreaksRenderer({
+                    defaultSymbol: defaultSym
+                });
+                renderer.field = "clusterCount";
+
+                var smSymbol = new SimpleMarkerSymbol({ size: 22, outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }), color: [255, 204, 102, 0.8] });
+                var mdSymbol = new SimpleMarkerSymbol({ size: 24, outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }), color: [102, 204, 255, 0.8] });
+                var lgSymbol = new SimpleMarkerSymbol({ size: 28, outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }), color: [51, 204, 51, 0.8] });
+                var xlSymbol = new SimpleMarkerSymbol({ size: 32, outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
+
+                renderer.addClassBreakInfo(0, 19, smSymbol);
+                renderer.addClassBreakInfo(20, 150, mdSymbol);
+                renderer.addClassBreakInfo(151, 1000, lgSymbol);
+                renderer.addClassBreakInfo(1001, Infinity, xlSymbol);
+
+                var areaRenderer;
+                if (areaDisplayMode) {
+                    //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
+                    var defaultAreaSym = new SimpleFillSymbol({
+                        style: "solid",
+                        color: [0, 0, 0, 0.2],
+                        outline: new SimpleLineSymbol({ color: [0, 0, 0, 0.3] })
+                    });
+
+                    areaRenderer = new ClassBreaksRenderer({
+                        defaultSymbol: defaultAreaSym
+                    });
+                    areaRenderer.field = "clusterCount";
+
+                    var smAreaSymbol = new SimpleFillSymbol({ color: [255, 204, 102, 0.8], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }) });
+                    var mdAreaSymbol = new SimpleFillSymbol({ color: [102, 204, 255, 0.8], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }) });
+                    var lgAreaSymbol = new SimpleFillSymbol({ color: [51, 204, 51, 0.8], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }) });
+                    var xlAreaSymbol = new SimpleFillSymbol({ color: [250, 65, 74, 0.8], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }) });
+
+                    areaRenderer.addClassBreakInfo(0, 19, smAreaSymbol);
+                    areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
+                    areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
+                    areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
+                    
+                }
+                
+                //set up a popup template
+                var popupTemplate = new PopupTemplate({
+                    title: "{name}",
+                    content: [{
+                        type: "fields",
+                        fieldInfos: [
+                         { fieldName: "facilityType", label: "Facility Type", visible: true },
+                         { fieldName: "postcode", label: "Post Code", visible: true },
+                         { fieldName: "isOpen", label: "Opening Hours", visible: true }
+                        ]
+                    }]
+                });
+
+               
+                var options = {
+                    id: "flare-cluster-layer",
+                    renderer: renderer,
+                    areaRenderer: areaRenderer,
+                    singlePopupTemplate: popupTemplate,
+                    spatialReference: new SpatialReference({ "wkid": 4326 }),
+                    subTypeFlareProperty: "facilityType",
+                    singleFlareTooltipProperty: "name",
+                    displaySubTypeFlares: true,
+                    maxSingleFlareCount: maxSingleFlareCount,                    
+                    preClustered: preClustered,
+                    clusterRatio: 75,
+                    clusterAreaDisplay: areaDisplayMode
+                }
+
+                clusterLayer = new fcl.FlareClusterLayer(options);
+                map.add(clusterLayer);
+                clusterLayer.setData(data);
+            }
+
+            function clearLayer() {
+                map.remove(clusterLayer);
+                clusterLayer = null;
+            }
+
+
+            //setup some event handlers to react to change of options
+
+            on(dom.byId("area-mode"), "change", function (evt) {
+                clusterLayer.clusterAreaDisplay = this.value;
+                clusterLayer.drawData();
+            });
+
+            on(dom.byId("view-mode"), "change", function (evt) {
+                var view = this.value === "2d" ? mapView : sceneView;
+                setActiveView(view);
+            });
+
+            on(dom.byId("menu-switch"), "click", function (evt) {
+                var menu = dom.byId("menu");
+                if (menu.classList.contains("closed")) {
+                    menu.classList.remove("closed");
+                }
+                else {
+                    menu.classList.add("closed");
+                }
+            });
+
+            on(dom.byId("close-menu"), "click", function (evt) {
+                var menu = dom.byId("menu");
+                menu.classList.add("closed");
+            });
+
+            function setActiveView(view) {
+                if (view === activeView) return; //it's already active
+
+                if (view === mapView) {
+                    //sync map views location to scene views
+                    mapView.viewpoint = sceneView.viewpoint;
+
+                    dojo.addClass(sceneView.container, "hidden");
+                    dojo.removeClass(mapView.container, "hidden");
+                }
+                else {
+                    //sync scene views location to map views - setting the extent seems to work a whole lot better than setting the viewpoint when swapping to 3D.
+                    sceneView.extent = mapView.extent;
+
+                    dojo.addClass(mapView.container, "hidden");
+                    dojo.removeClass(sceneView.container, "hidden");
+                }
+
+                //when switching views need to force a recluster
+                clusterLayer.drawData(view);
+                activeView = view;
+            }
+
+            function detectWebGLContext () {
+                // Create canvas element. The canvas is not added to the
+                // document itself, so it is never displayed in the
+                // browser window.
+                var canvas = document.createElement("canvas");
+                // Get WebGLRenderingContext from canvas element.
+                var gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+                // Report the result.
+                if (gl && gl instanceof WebGLRenderingContext) {
+                    alert("supports web gl");
+                } else {
+                    alert("NO webgl");
+                }
+            }
+
+        });
+
+
+    </script>
+
+
+</head>
+<body>
+
+    <div id="container">
+
+        <div class="view" id="mapView">
+
+        </div>
+        <div class="view" id="sceneView">
+
+        </div>
+
+        <div id="header">
+
+            <span id="menu-switch" class="menu-hamburger" title="Show/hide options"></span>
+
+            <span>Flare cluster layer - API v4.0</span>
+            <a href="index_v3.html">Goto v3.x example</a>
+
+        </div>
+
+        <div id="menu" >
+            <span id="close-menu" title="Hide options">&times</span>
+            <div><label for="view-mode">View mode:</label></div>
+            <div>
+                <select id="view-mode">
+                    <option value="2d">Map View (2d)</option>
+                    <option value="3d">Scene View (3d)</option>
+                </select>
+            </div>
+
+            <hr />
+            <div><label for="area-mode">Display cluster area mode:</label></div>
+            <div>
+                <select id="area-mode">
+                    <option value="">None</option>
+                    <option value="activated">Hover</option>
+                    <option value="always">Always</option>
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

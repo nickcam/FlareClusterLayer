@@ -17,7 +17,7 @@
   "esri/geometry/webMercatorUtils",
   "esri/geometry/geometryEngine",
   "esri/graphic",
-  
+
   "esri/Color",
   "esri/renderers/ClassBreaksRenderer",
   "esri/symbols/Font",
@@ -54,6 +54,9 @@
               clusterAreaDisplay (string): default null. Can be either 'always' or 'hover'. 'always' will constantly display the cluster area, 'hover' will only display it on hover of cluster object
                                                          The cluster area is a ploygon of the total area covered by the points in a cluster. If using preClustered data, each cluster object must contain a property called 'points' which is an array of points for every point in the cluster. example: cluster.points = [[x1, y1], [x2, y2], [x3, y3]];
               clusterAreaRenderer (Renderer): default null. This is required if clusterAreaDisplay is set. This can be set in options constructor object or by calling setRenderer as the second argument.
+              xPropertyName (string): default 'x'.  This is the name of the field in the dataset that represents the x coordinate.
+              yPropertyName (string): default 'y'.  This is the name of the field in the dataset that represents the y coordinate.
+              idPropertyName (string): default null. This is the name of the field in the dataset that represents a unique id which can be used to identify the flare.  This is usefull when you may have multiple points with the same lat/long.
             */
 
             //set options from constructor parameter or set defaults
@@ -83,6 +86,10 @@
 
             this.clusterAreaDisplay = options.clusterAreaDisplay;
             this.clusterAreaRenderer = options.clusterAreaRenderer;
+
+            this.xPropertyName = options.xPropertyName || 'x';
+            this.yPropertyName = options.yPropertyName || 'y';
+            this.idPropertyName = options.idPropertyName || null;
 
             if (this.clusterAreaDisplay && (this.clusterAreaDisplay !== 'always' && this.clusterAreaDisplay !== 'hover')) {
                 console.error("clusterAreaDisplay can only be 'always' or 'hover'.");
@@ -156,7 +163,7 @@
                 }
             }
 
-            for (var i = 0, len = this.graphicEvents.length; i < len; i++) {
+            for (i = 0, len = this.graphicEvents.length; i < len; i++) {
                 if (this.graphicEvents[i]) {
                     this.graphicEvents[i].remove();
                 }
@@ -211,7 +218,7 @@
                 this.map.infoWindow.cluster = this.activeCluster;
 
                 //reset the geometry of the flare feature in the info window to be the actual location of the flared object, not the location of the flare graphic.
-                var p = webMercatorUtils.geographicToWebMercator(new Point(flareObject.singleData.x, flareObject.singleData.y, this.spatialRef));
+                var p = webMercatorUtils.geographicToWebMercator(new Point(flareObject.singleData[this.xPropertyName], flareObject.singleData[this.yPropertyName], this.spatialRef));
                 this.map.infoWindow.features[0].geometry = p;
                 this.map.infoWindow.show(sp);
 
@@ -222,6 +229,7 @@
         //Each object passed in must contain an x and y property. 
         //Data should also contain whatever property is set in singleFlareTooltipProperty, so the flare tooltip has something to display for summary flares if needed
         add: function (p) {
+
 
             // if passed a graphic, just use the base GraphicsLayer's add method
             if (p.declaredClass) {
@@ -252,11 +260,14 @@
 
             this.allData.push(obj);
 
+            var xVal = obj[this.xPropertyName];
+            var yVal = obj[this.yPropertyName];
+
             //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
             if (this.spatialRef.isWebMercator()) {
-                web = [obj.x, obj.y];
+                web = [xVal, yVal];
             } else {
-                web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+                web = webMercatorUtils.lngLatToXY(xVal, yVal);
             }
 
             //filter by visible extent first
@@ -273,26 +284,26 @@
                 }
 
                 //recalc the x and y of the cluster by averaging the points again
-                cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
-                cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
+                cl.x = cl.clusterCount > 0 ? (xVal + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : xVal;
+                cl.y = cl.clusterCount > 0 ? (yVal + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : yVal;
 
                 //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
                 if (this.clusterAreaDisplay) {
-                    cl.points.push([obj.x, obj.y]);
+                    cl.points.push([xVal, yVal]);
                 }
 
                 cl.clusterCount++;
 
                 var subTypeExists = false;
                 for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
-                    if (cl.subTypeCounts[s].name === obj.facilityType) {
+                    if (cl.subTypeCounts[s].name === obj[this.subTypeFlareProperty]) {
                         cl.subTypeCounts[s].count++;
                         subTypeExists = true;
                         break;
                     }
                 }
                 if (!subTypeExists) {
-                    cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
+                    cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
                 }
 
                 cl.singles.push(obj);
@@ -425,10 +436,12 @@
 
 
         _infoWindowShow: function (e) {
-            for (var i = 0; i < this.map.infoWindow.features.length; i++) {
-                if (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea) {
-                    this.map.infoWindow.hide(); //if a cluster never show an info window
-                    return;
+            if (typeof (this.map.infoWindow.features !== 'undefined') && this.map.infoWindow.features !== null) {
+                for (var i = 0; i < this.map.infoWindow.features.length; i++) {
+                    if (typeof (this.map.infoWindow.features[i].attributes) !== 'undefined' && (this.map.infoWindow.features[i].attributes.isCluster || this.map.infoWindow.features[i].attributes.isClusterArea)) {
+                        this.map.infoWindow.hide(); //if a cluster never show an info window
+                        return;
+                    }
                 }
             }
         },
@@ -513,18 +526,34 @@
             this.clear();
 
             //get an extent that is in web mercator to make sure it's flat for extent checking
-            var webExtent = webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 }));
+            //The webextent will need to be normalized since panning over the international dateline will cause
+            //cause the extent to shift outside the -180 to 180 degree window.  If we don't normalize then the
+            //clusters will not be drawn if the map pans over the international dateline.
+            var webExtent = !this.map.extent.spatialReference.isWebMercator() ? webMercatorUtils.project(this.map.extent, new SpatialReference({ "wkid": 102100 })) : this.map.extent;
+            var normalizedWebExtent = webExtent.normalize();
+            webExtent = normalizedWebExtent[0];
+            if (normalizedWebExtent.length > 1) {
+                webExtent = webExtent.union(normalizedWebExtent[1]);
+                this.extentIsUnioned = true;
+            }
+            else {
+                this.extentIsUnioned = true;
+            }
+
             this._createClusterGrid(webExtent);
 
             var dataLength = this.allData.length;
-            var web, obj;
+            var web, obj, xVal, yVal;
             for (var i = 0; i < dataLength; i++) {
                 obj = this.allData[i];
+                xVal = obj[this.xPropertyName];
+                yVal = obj[this.yPropertyName];
+
                 //get a web merc lng/lat for extent checking. Use web merc as it's flat to cater for longitude pole
                 if (this.spatialRef.isWebMercator()) {
-                    web = [obj.x, obj.y];
+                    web = [xVal, yVal];
                 } else {
-                    web = webMercatorUtils.lngLatToXY(obj.x, obj.y);
+                    web = webMercatorUtils.lngLatToXY(xVal, yVal);
                 }
 
                 //filter by visible extent first
@@ -541,33 +570,33 @@
                     }
 
                     //recalc the x and y of the cluster by averaging the points again
-                    cl.x = cl.clusterCount > 0 ? (obj.x + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : obj.x;
-                    cl.y = cl.clusterCount > 0 ? (obj.y + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : obj.y;
+                    cl.x = cl.clusterCount > 0 ? (xVal + (cl.x * cl.clusterCount)) / (cl.clusterCount + 1) : xVal;
+                    cl.y = cl.clusterCount > 0 ? (yVal + (cl.y * cl.clusterCount)) / (cl.clusterCount + 1) : yVal;
 
                     //push every point into the cluster so we have it for area display if required. This could be omitted if never checking areas, or on demand at least
                     if (this.clusterAreaDisplay) {
-                        cl.points.push([obj.x, obj.y]);
+                        cl.points.push([xVal, yVal]);
                     }
 
                     cl.clusterCount++;
 
                     var subTypeExists = false;
                     for (var s = 0, sLen = cl.subTypeCounts.length; s < sLen; s++) {
-                        if (cl.subTypeCounts[s].name === obj.facilityType) {
+                        if (cl.subTypeCounts[s].name === obj[this.subTypeFlareProperty]) {
                             cl.subTypeCounts[s].count++;
                             subTypeExists = true;
                             break;
                         }
                     }
                     if (!subTypeExists) {
-                        cl.subTypeCounts.push({ name: obj.facilityType, count: 1 });
+                        cl.subTypeCounts.push({ name: obj[this.subTypeFlareProperty], count: 1 });
                     }
 
                     cl.singles.push(obj);
                 }
             }
 
-            for (var i = 0, len = this.gridClusters.length; i < len; i++) {
+            for (i = 0, len = this.gridClusters.length; i < len; i++) {
                 if (this.gridClusters[i].clusterCount === 1) {
                     this._createSingle(this.gridClusters[i].singles[0]);
                 }
@@ -583,6 +612,11 @@
             //get the total amount of grid spaces based on the height and width of the map (divide it by clusterRatio) - then get the degrees for x and y 
             var xCount = Math.round(this.map.width / this.clusterRatio);
             var yCount = Math.round(this.map.height / this.clusterRatio);
+
+            //if the extent has been unioned due to normalization, double the count of x in the cluster grid as the unioning will halve it.
+            if (this.extentIsUnioned) {
+                xCount *= 2;
+            }
 
             var xw = (webExtent.xmax - webExtent.xmin) / xCount;
             var yh = (webExtent.ymax - webExtent.ymin) / yCount;
@@ -608,13 +642,12 @@
                     });
                 }
             }
-
         },
 
         _createSingle: function (single) {
             this.singles.push(single);
             delete single.graphic;
-            var point = new Point(single.x, single.y, this.spatialRef);
+            var point = new Point(single[this.xPropertyName], single[this.yPropertyName], this.spatialRef);
             var attributes = lang.clone(single);
             var graphic = new Graphic(point, null, attributes, null);
             single.graphic = graphic;
@@ -708,6 +741,7 @@
             var textShape = groupShape.createText({ x: shapeCenter.x, y: shapeCenter.y + (this.textSymbol.font.size / 2 - 2), text: cluster.clusterCount, align: 'middle' })
                             .setFont({ size: this.textSymbol.font.size, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight })
                             .setFill(this.textSymbol.color);
+            textShape.rawNode.setAttribute("class", "cluster-text-counts");
             textShape.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
             groupShape.add(textShape);
             cluster.textShape = textShape;
@@ -786,6 +820,7 @@
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+
             scaleAnims.push(scaleUp);
 
             this._playAnimations(scaleAnims, this.animationMultipleType.combine);
@@ -841,7 +876,7 @@
                     return b.count - a.count;
                 });
 
-                for (var i = 0, len = subTypes.length; i < len; i++) {
+                for (i = 0, len = subTypes.length; i < len; i++) {
                     this.flareObjects.push({
                         tooltipText: subTypes[i].count + " - " + subTypes[i].name,
                         flareText: subTypes[i].count,
@@ -858,7 +893,7 @@
             //if there's an even amount of flares, position the first flare to the left, minus 180 from degree to do this.
             //for an add amount position the first flare on top, -90 to do this. Looks more symmetrical this way.
             var degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
-            for (var i = 0, len = flareCount; i < len; i++) {
+            for (i = 0, len = flareCount; i < len; i++) {
 
                 //exit if we've hit the maxFlareCount - a summary would have been created on the last one
                 if (i >= this.maxFlareCount) {
@@ -909,7 +944,14 @@
                 pt.x = fo.center.x;
                 pt.y = fo.center.y;
                 var screenPoint = pt.matrixTransform(matrix);
-                var sp = new ScreenPoint(screenPoint.x, screenPoint.y);
+
+                //ScreenPoint needs to be relative to the top-left corner of the map control.
+                //The matrixTransform on pt gives us a point based on the screen coordinate system.
+                //Therefore if the map has a top offset applied to it the fo object will appear in 
+                //an incorrect spot on the map.  We must apply the offset to both the x and y points
+                //to ensure the point is relative to the map control.
+                var offsets = this.surface.rawNode.getBoundingClientRect();
+                var sp = new ScreenPoint(screenPoint.x - offsets.left, screenPoint.y - offsets.top);
                 fo.mapPoint = this.map.toMap(sp);
 
                 var attributes = fo.singleData ? lang.clone(fo.singleData) : {};
@@ -922,10 +964,15 @@
                 }
                 flareGroup.rawNode.appendChild(flareCircle.rawNode);
 
-                var flareText = flareGroup.createText({ x: fo.center.x, y: fo.center.y + (radius / 2 - 1), text: !isSummaryFlare ? fo.flareText : "...", align: 'middle' })
-                        .setFill(this.textSymbol.color)
-                        .setFont({ size: !isSummaryFlare ? 7 : 10, family: this.textSymbol.font.family, weight: this.textSymbol.font.weight });
-                flareText.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
+                if (fo.flareText) {
+                    //if displaying text in the flare, 
+                    flareGroup.flareText = {
+                        location: { x: fo.center.x, y: fo.center.y + (radius / 2 - 1) },
+                        text: !isSummaryFlare ? fo.flareText : "...",
+                        textSize: !isSummaryFlare ? 7 : 10
+                    };
+                }
+
                 flareGroup.setTransform({ xx: 0, yy: 0 });//scale to 0 to start with
                 flareGroup.rawNode.setAttribute("class", "flare-object cluster-object");
                 flareCircle.rawNode.setAttribute("class", "flare-graphic cluster-object");
@@ -949,6 +996,7 @@
             }
 
             this._playAnimations(stAnims, this.animationMultipleType.chain);
+
         },
 
         _showFlareDetail: function (graphic) {
@@ -1035,6 +1083,7 @@
                     ],
                     onEnd: dojo.partial(this._animationEnd, this)
                 });
+
                 scaleAnims.push(areaHide);
             }
 
@@ -1046,6 +1095,7 @@
                 ],
                 onEnd: dojo.partial(this._animationEnd, this)
             });
+
             scaleAnims.push(scaleDown);
 
             this._playAnimations(scaleAnims, this.animationMultipleType.combine);
@@ -1104,7 +1154,7 @@
             rectShape.rawNode.setAttribute("pointer-events", "none");
 
             shape.moveToFront();
-            for (var i = 0, len = textShapes.length; i < len; i++) {
+            for (i = 0, len = textShapes.length; i < len; i++) {
                 textShapes[i].moveToFront();
             }
 
@@ -1135,7 +1185,7 @@
             //return the graphic from the obj which could be a single or cluster object
             for (var i = 0, len = this.graphics.length; i < len; i++) {
                 var g = this.graphics[i];
-                if (g.attributes.x === obj.x && g.attributes.y === obj.y) {
+                if (g.attributes[this.xPropertyName] === obj[this.xPropertyName] && g.attributes[this.yPropertyName] === obj[this.yPropertyName]) {
                     return g;
                 }
             }
@@ -1166,7 +1216,8 @@
             //return the obj which could be a single or cluster object, based on the graphic
             for (var i = 0, len = this.flareObjects.length; i < len; i++) {
                 var fl = this.flareObjects[i];
-                if (fl.singleData && (fl.singleData.x === graphic.attributes.x && fl.singleData.y === graphic.attributes.y)) {
+                if (fl.singleData && (fl.singleData[this.xPropertyName] === graphic.attributes[this.xPropertyName] && fl.singleData[this.yPropertyName] === graphic.attributes[this.yPropertyName]) &&
+                   (this.idPropertyName === null || fl.singleData[this.idPropertyName] === graphic.attributes[this.idPropertyName])) {
                     return fl;
                 }
 
@@ -1184,17 +1235,33 @@
             return { x: x, y: y };
         },
 
-
         _animationEnd: function (layer) {
+            //scope: 'this' is the animation that triggered the event, 'layer' is the flare cluster layer object instance
 
-            //IE fix, if the animation shape contains a text element underneath it set the transform of the the text to 1. 
-            //IE wasn't displaying most text elements after animations for some reason, there's probably a better fix for this though.
-            var textElement = dojo.query("> text", this.shape.rawNode).forEach(function (elem) {
-                var txt = new gfx.Text(elem);
-                txt.setTransform({ xx: 1, yy: 1 });
+            //IE10 and below Fix - have to manually set transform back to 1 on elements. They don't seem to appear all of the time again after beign animated back to 
+            //a scale of 1. IE sucks.
+            dojo.query("> *", this.shape.rawNode).forEach(function (elem) {
+                if (!elem.__gfxObject__) return;
+                //put this in a slight timeout, otherwise the display can get a tiny bit jittery.
+                setTimeout(function () {
+                    if (elem.__gfxObject__) {
+                        elem.__gfxObject__.setTransform({ xx: 1, yy: 1 });
+                    }
+                }, 50);
             });
 
-            //scope: 'this' is the animation that triggered the event, 'layer' is the flare cluster layer object instance
+            //Here's a hack for Edge. Good to see there's no need to do special hacks for MS browsers anymore. WTF.
+            //Have to add the flare text after the flare group animation otherwise Edge just reloads the page and dies for some reason?
+            if (this.shape.flareText) {
+                var flareText = this.shape.createText({ x: this.shape.flareText.location.x, y: this.shape.flareText.location.y, text: this.shape.flareText.text, align: 'middle' })
+                            .setFill(layer.textSymbol.color)
+                            .setFont({ size: this.shape.flareText.textSize, family: layer.textSymbol.font.family, weight: layer.textSymbol.font.weight });
+
+                flareText.rawNode.setAttribute("class", "flare-text-counts");
+                flareText.rawNode.setAttribute("pointer-events", "none"); //remove pointer events from text
+                flareText.moveToFront();
+            }
+
             for (var i = 0, len = layer.animationsRunning.length; i < len; i++) {
                 if (layer.animationsRunning[i] === this) {
                     layer.animationsRunning.splice(i, 1);
@@ -1230,4 +1297,3 @@
         //#endregion
     });
 });
-
