@@ -159,7 +159,9 @@ $RECYCLE.BIN/
 #node-modules
 node_modules/
 
-#ignore typings
-typings/
+#ignore typing files
+typings/globals/
 
 .vscode/
+
+.typingsrc
