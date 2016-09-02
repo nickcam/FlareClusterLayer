@@ -47,3 +47,15 @@ That is assuming you're using [esri-system-js](https://github.com/Esri/esri-syst
 You would probably also need to remove the reference to the index.d.ts from typings at the top of the file, and just include the required typings file however your project already manages this.
 
 In the SceneView I used an external renderer to do the custom drawing...I think this is the way to go - but my webgl knowledge is non existent so to draw the flares and the activated cluster I used an svg element that moves around depending on the cluster selected and just add svg nodes to it. It works fine, but anyone with some webgl skills is welcome to fix that up so it's all in the webgl render pipeline using webgl objects. The benefit of using svg nodes is that any css defined for the classes will apply to the scene view as well.
+
+ Cross browser notes on the example CSS animations:
+  - IE/Edge: These POS's don't support transforms on svg elements using css, so the css transform animations won't work.
+  - Firefox: Firefox's transform-origin behaves differently to Chrome...as in "keywords and percentages refer to the canvas instead of the object itself" - https://developer.mozilla.org/en/docs/Web/CSS/transform-origin
+  This means scaling won't work out of the box in firefox, the svg element will move around, so is disabled using -moz- tags in the default styles.
+  To get it to work you have to set the firefox preference svg.transform-box.enabled to true.
+  Not ideal as each user will have to set this preference in their installation, but could work as an enterprise wide setting I guess.
+  See this bug - https://bugzilla.mozilla.org/show_bug.cgi?id=1209061 - apparentely firefox is on spec, for the moment, the spec will change to match Chrome's default in time. 
+  
+  Have added these notes to the index_v4.html file as well as well example styles to get firefox working with the example page.
+  Of course you could just not use scaling as an animation and/or use some other type of css animation.
+
