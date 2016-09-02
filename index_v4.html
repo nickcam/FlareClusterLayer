@@ -118,19 +118,21 @@
         /* The below two rules animate the creation of clusters */
         .cluster-group {
             transform-origin: center;
-            transform: scale(0, 0);
+            transform: scale(0);
+            -moz-transform: scale(1); /* Don't scale to 0 in firefox see notes below */
         }
-        
+      
         .cluster-group.created  {
-            transform: scale(1, 1);
+            transform: scale(1);
             transition: transform linear 0.2s;
         }
 
         /* Some rules to change the appearance of clusters and it's text when activated */
-
+ 
         /* Scale up the clusters when activated */
-        .cluster-group.activated {
-            transform: scale(1.3, 1.3);
+        .cluster-group.activated {        
+            transform: scale(1.3);
+            -moz-transform: scale(1); /* Don't scale up in firefox see notes below */
             transition: transform linear 0.4s;
         }
             
@@ -194,13 +196,56 @@
 
         .cluster-area {
             transform-origin: center;
-            transform: scale(0, 0);
+            transform: scale(0);
+            -moz-transform: scale(1); /* Don't scale up in firefox see notes below */
         }
 
         .cluster-area.activated {
-            transform: scale(1, 1);
+            transform: scale(1);
             transition: transform linear 0.4s;
         }
+
+        /*
+            Cross browser notes on the example CSS animations: 
+            IE/Edge: These POS's don't support transforms on svg elements using css, so the css transform animations won't work.
+            Firefox: Firefox's transform-origin behaves differently to Chrome...as in "keywords and percentages refer to the canvas instead of the object itself" - https://developer.mozilla.org/en/docs/Web/CSS/transform-origin
+                     This means scaling won't work out of the box in firefox, the svg element will move around, so is disabled using -moz- tags in the default styles.
+                     To get it to work you have to set the firefox preference svg.transform-box.enabled to true, then use the following styles instead.
+                     Not ideal as each user will have to set this preference in their installation, but could work as an enterprise wide setting I guess.
+                     See this bug - https://bugzilla.mozilla.org/show_bug.cgi?id=1209061 - apparentely firefox is on spec, for the moment, the spec will change to match Chrome's default in time. 
+          
+            Firefox replacement styles with svg.transform-box.enabled set to true
+
+            .cluster-group {
+                transform-origin: center;
+                transform: scale(0);
+            }
+      
+            .cluster-group.created  {
+                transform-box: fill-box;  
+                transform: scale(1);
+                transition: transform linear 0.2s;
+            }
+
+
+            .cluster-group.activated {
+                transform-box: fill-box;            
+                transform: scale(1.3);
+                transition: transform linear 0.4s;
+            }
+
+            .cluster-area {
+                transform-origin: center;
+                transform: scale(0);
+            }
+
+            .cluster-area.activated {
+                transform-box: fill-box;
+                transform: scale(1);
+                transition: transform linear 0.4s;
+            }
+
+        */
 
     </style>
 
