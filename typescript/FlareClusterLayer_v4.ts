@@ -757,7 +757,10 @@ class FlareClusterVectorGroup extends VectorGroup {
                     //remove the node from the dom (try and keep it as light as possible)
                     this.removeNodeFromDom(v.shape.rawNode);
                 }
-
+                else if(this.layer.clusterAreaDisplay === "always") {
+                    v.shape.rawNode.setAttribute("class", "cluster-area activated"); //add the activated class if the area is always visible                
+                }
+                
                 //assign to a property on the cluster vector
                 let cv = this.getClusterVectorByGraphicId(v.graphic.attributes.clusterGraphicId);
                 if (cv) {
