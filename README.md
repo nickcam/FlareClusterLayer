@@ -24,7 +24,7 @@ Demos are here:
 
 v3.x - http://flareclusterlayer.azurewebsites.net/index_v3.html
 
-v4.0 - http://flareclusterlayer.azurewebsites.net/index_v4.html 
+v4.0 - sorry no demo page for v4.0. Only the latest version has a demo page.
 
 ## api v4.0 notes
 
