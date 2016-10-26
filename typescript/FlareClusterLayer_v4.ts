@@ -20,6 +20,8 @@ import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
 import * as externalRenderers from 'esri/views/3d/externalRenderers';
 import * as VectorGroup from "esri/views/2d/VectorGroup";
+import * as viewpointUtils from "esri/views/2d/viewpointUtils";
+import * as accessorSupportDecorators from "esri/core/accessorSupport/decorators";
 
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
@@ -65,7 +67,14 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 }
 
 
-export class FlareClusterLayer extends GraphicsLayer {
+//This is how you have to extend classes in arcgis api that are a subclass of Accessor.
+//Will likely change in future releases. See these links - https://github.com/Esri/jsapi-resources/issues/40 & https://github.com/ycabon/extend-accessor-example
+interface BaseGraphicsLayer extends GraphicsLayer { }
+interface BaseGraphicsLayerConstructor { new (options?: __esri.GraphicsLayerProperties): BaseGraphicsLayer; }
+let baseGraphicsLayer: BaseGraphicsLayerConstructor = accessorSupportDecorators.declared(<any>GraphicsLayer);
+
+@accessorSupportDecorators.subclass("FlareClusterLayer")
+export class FlareClusterLayer extends baseGraphicsLayer {
 
     singlePopupTemplate: PopupTemplate;
     singleRenderer: any;
@@ -99,15 +108,23 @@ export class FlareClusterLayer extends GraphicsLayer {
     private readyToDraw: boolean;
     private queuedInitialDraw: boolean;
     private data: any[];
-    private layerViews: any[] = [];
+    private layerViews: any[];
+
+    private viewLoadCount;
+    private viewPopupMessageEnabled;
 
     constructor(options: FlareClusterLayerProperties) {
+
         super(options);
 
         //set the defaults
         if (!options) {
             options = {};
         }
+
+        this.layerViews = [];
+        this.viewLoadCount = 0;
+        this.viewPopupMessageEnabled = true;
 
         this.singlePopupTemplate = options.singlePopupTemplate;
         this.clusterRatio = options.clusterRatio || 75;
@@ -164,14 +181,13 @@ export class FlareClusterLayer extends GraphicsLayer {
             this.drawData();
         }
     }
+     
 
-    private viewLoadCount = 0;
-    private viewPopupMessageEnabled = true;
     private layerViewCreated(evt) {
 
         if (evt.layerView.view.type === "2d") {
-            //this is map view so set up a watch to find out when the vector group has been created
-            watchUtils.once(evt.layerView._graphicsView, "group", (vectorGroup, b, c, graphicsView) => this.vectorGroupCreated(vectorGroup, b, c, graphicsView));
+            //this is map view so set up a watch to find out when the vector group has been created. Since 4.1 - use the gfx poroperty pm the graphicsView instead of group??
+            watchUtils.whenDefinedOnce(evt.layerView._graphicsView, "gfx", (vectorGroup, b, c, graphicsView) => this.vectorGroupCreated(vectorGroup, b, c, graphicsView));
         }
         else {
             //this is 3d so add a custom external rendeder to hook into webgl pipeline to do things.
@@ -229,26 +245,26 @@ export class FlareClusterLayer extends GraphicsLayer {
         var newStyle = parentDiv.getAttribute("style") + ";z-index:10";
         parentDiv.setAttribute("style", newStyle);
 
+        let existingGroup = graphicsView.group;
         graphicsView.group = new FlareClusterVectorGroup({
-            view: vectorGroup.view,
-            x: vectorGroup.x,
-            y: vectorGroup.y,
-            resolution: vectorGroup.resolution,
-            rotation: vectorGroup.rotation,
-            surface: vectorGroup.surface,
-            layer: vectorGroup.layer
+            view: existingGroup.view,
+            x: existingGroup.x,
+            y: existingGroup.y,
+            resolution: existingGroup.resolution,
+            rotation: existingGroup.rotation,
+            surface: existingGroup.surface,
+            layer: this
         });
 
         this.readyToDraw = true;
         if (this.queuedInitialDraw) {
-            this.drawData();
+            this.drawData(existingGroup.view);
             this.queuedInitialDraw = false;
         }
     }
 
-    removeAll() {
-        super.removeAll();
-
+    clear() {
+        this.removeAll();
         for (let lv of this.layerViews) {
             if (lv._graphicsView && lv._graphicsView.group) {
                 //this is a 2d layer view so clear the vector groups vector array
@@ -265,6 +281,7 @@ export class FlareClusterLayer extends GraphicsLayer {
         }
     }
 
+ 
     drawData(activeView?: any) {
         //Not ready to draw yet so queue one up
         if (!this.readyToDraw) {
@@ -279,7 +296,7 @@ export class FlareClusterLayer extends GraphicsLayer {
         //no data set and no active (visible) view found so return
         if (!this.data || !this.activeView) return;
 
-        this.removeAll();
+        this.clear();
         console.time("draw-data");
 
         this.isClustered = this.clusterToScale < this.activeView["scale"];
@@ -294,13 +311,13 @@ export class FlareClusterLayer extends GraphicsLayer {
         //clusters will not be drawn if the map pans over the international dateline.
         let webExtent = !this.activeView.extent.spatialReference.isWebMercator ? webMercatorUtils.project(this.activeView.extent, new SpatialReference({ "wkid": 102100 })) : this.activeView.extent;
         let extentIsUnioned = false;
-        //TODO: normalizing not working in 4.0 yet.
-        //var normalizedWebExtent = webExtent.normalize();
-        //webExtent = normalizedWebExtent[0];
-        //if (normalizedWebExtent.length > 1) {
-        //    webExtent = webExtent.union(normalizedWebExtent[1]);
-        //    extentIsUnioned = true;
-        //}
+        
+        let normalizedWebExtent = webExtent.normalize();
+        webExtent = normalizedWebExtent[0];
+        if (normalizedWebExtent.length > 1) {
+            webExtent = webExtent.union(normalizedWebExtent[1]);
+            extentIsUnioned = true;
+        }
 
         if (this.isClustered) {
             this.createClusterGrid(webExtent, extentIsUnioned);
@@ -417,10 +434,16 @@ export class FlareClusterLayer extends GraphicsLayer {
     }
 
     private createSingle(obj) {
+        let point = new Point({
+            x: obj[this.xPropertyName], y: obj[this.yPropertyName], z: obj[this.zPropertyName]
+        });
+
+        if (!point.spatialReference.isWebMercator) {
+            point = <Point>webMercatorUtils.geographicToWebMercator(point);
+        }
+
         let graphic = new Graphic({
-            geometry: new Point({
-                x: obj[this.xPropertyName], y: obj[this.yPropertyName], z: obj[this.zPropertyName]
-            }),
+            geometry: point,
             attributes: obj
         });
 
@@ -435,8 +458,14 @@ export class FlareClusterLayer extends GraphicsLayer {
 
     }
 
+
     private createCluster(cluster: GridCluster) {
+
+        //make sure all geometries added to Graphic objects are in web mercator otherwise wrap around doesn't work.
         let point = new Point({ x: cluster.x, y: cluster.y });
+        if (!point.spatialReference.isWebMercator) {
+            point = <Point>webMercatorUtils.geographicToWebMercator(point);
+        }
 
         let attributes: any = {
             x: cluster.x,
@@ -452,6 +481,7 @@ export class FlareClusterLayer extends GraphicsLayer {
         });
 
         graphic.popupTemplate = null;
+
         this.add(graphic);
 
         //also create a text symbol to display the cluster count
@@ -462,13 +492,14 @@ export class FlareClusterLayer extends GraphicsLayer {
             geometry: point,
             attributes: {
                 isClusterText: true,
-                clusterGraphicId: graphic["id"]
+                clusterGraphicId: graphic["uid"]
             },
             symbol: textSymbol
         });
         tg.popupTemplate = null;
         this.add(tg);
         graphic.attributes.textGraphic = tg;
+        
 
         //add an area graphic to display the bounds of the cluster if configured to
         let areaGraphic;
@@ -481,17 +512,23 @@ export class FlareClusterLayer extends GraphicsLayer {
             let mp = new Multipoint();
             mp.points = cluster.points;
             let area: any = geometryEngine.convexHull(mp, true); //use convex hull on the points to get the boundary
+            
             let areaAttr: any = {
                 x: cluster.x,
                 y: cluster.y,
                 clusterCount: cluster.clusterCount,
-                clusterGraphicId: graphic["id"],
+                clusterGraphicId: graphic["uid"],
                 isClusterArea: true
             }
 
             if (area.rings && area.rings.length > 0) {
-                var areaPoly = new Polygon(); //had to create a new polygon and fill it with the ring of the calculated area for SceneView to work.
+                let areaPoly = new Polygon(); //had to create a new polygon and fill it with the ring of the calculated area for SceneView to work.
                 areaPoly = areaPoly.addRing(area.rings[0]);
+
+                if (!areaPoly.spatialReference.isWebMercator) {
+                    areaPoly = <Polygon>webMercatorUtils.geographicToWebMercator(areaPoly);
+                }
+
                 areaGraphic = new Graphic({ geometry: areaPoly, attributes: areaAttr });
                 let areaInfo = this.areaRenderer.getClassBreakInfo(areaGraphic);
                 areaGraphic.symbol = areaInfo.symbol;
@@ -500,7 +537,6 @@ export class FlareClusterLayer extends GraphicsLayer {
                 this.add(areaGraphic);
 
                 graphic.attributes.areaGraphic = areaGraphic;
-                //if (this.clusterAreaDisplay !== "always") areaGraphic.visible = false;
             }
         }
 
@@ -566,7 +602,7 @@ export class FlareClusterLayer extends GraphicsLayer {
                 isSummaryFlare: false,
                 tooltipText: "",
                 flareTextGraphic: undefined,
-                clusterGraphicId: clusterGraphic["id"]
+                clusterGraphicId: clusterGraphic["uid"]
             };
 
             let flareTextAttributes = {};
@@ -597,7 +633,6 @@ export class FlareClusterLayer extends GraphicsLayer {
                 geometry: clusterGraphic.geometry, //default geometry to be cluster point
                 popupTemplate: null
             });
-            //flareGraphic.popupTemplate = null;
             flareGraphics.push(flareGraphic);
 
             if (fo.flareText) {
@@ -710,7 +745,7 @@ class FlareClusterVectorGroup extends VectorGroup {
 
     }
 
-    draw() {
+    draw(a) {
 
         //only applies to 2d and only if there's vectors to draw
         if (this.layer.activeView.type !== "2d" || this.vectors.length === 0) {
@@ -722,14 +757,23 @@ class FlareClusterVectorGroup extends VectorGroup {
 
         this.clusterVectors = [];
 
-        this.transform || super._updateTransform();
+        this.transform || this._updateTransform();
+        let view = this.view, b = view.state;
+        if (0 < b.width - b.worldScreenWidth) {
+            var d = b.size.concat();
+            d[0] = Math.min(d[0], Math.round(b.worldScreenWidth));
+            this._viewExtent = viewpointUtils.getExtent(new Extent, b.viewpoint, d)
+        } else
+            this._viewExtent = view.extent;
+        this._viewGeoExtent = view.spatialReference.isWebMercator ? <Extent>webMercatorUtils.webMercatorToGeographic(this._viewExtent) : null;
         this.surface.openBatch();
-        var a, c, b;
-        c = 0;
-        for (b = this.vectors.length; c < b; c++) {
-            (a = this.vectors[c]) && this.drawVector(a);
 
-            let v = this.vectors[c];
+        let index = 0; 
+        let c;
+        for (d = this.vectors.length; index < d; index++) {
+            (c = this.vectors[index]) && super.drawVector(c, a);
+
+            let v = this.vectors[index];
             if (!v.shape) continue;
 
             if (v.graphic.attributes.isCluster) {
@@ -752,15 +796,19 @@ class FlareClusterVectorGroup extends VectorGroup {
             }
             else if (v.graphic.attributes.isClusterArea) {
                 v.shape.rawNode.setAttribute("class", "cluster-area");
-                v.shape.moveToBack();
+                
+                if (v.shape.rawNode.parentNode) {
+                    v.shape.moveToBack();
+                }
+                
                 if (this.layer.clusterAreaDisplay === "activated") {
                     //remove the node from the dom (try and keep it as light as possible)
                     this.removeNodeFromDom(v.shape.rawNode);
                 }
-                else if(this.layer.clusterAreaDisplay === "always") {
+                else if (this.layer.clusterAreaDisplay === "always") {
                     v.shape.rawNode.setAttribute("class", "cluster-area activated"); //add the activated class if the area is always visible                
                 }
-                
+
                 //assign to a property on the cluster vector
                 let cv = this.getClusterVectorByGraphicId(v.graphic.attributes.clusterGraphicId);
                 if (cv) {
@@ -785,14 +833,14 @@ class FlareClusterVectorGroup extends VectorGroup {
                 this.removeNodeFromDom(v.shape.rawNode);
 
                 //assign to a property on the flare shape vector - the flare shape vector should be the previous entry in the array
-                let flareShapeVector = this.vectors[c - 1];
+                let flareShapeVector = this.vectors[index - 1];
                 if (flareShapeVector.graphic.attributes.isFlare) {
                     flareShapeVector.textVector = v;
                 }
             }
         }
 
-        this.surface.closeBatch();
+        this.surface.closeBatch()
 
         if (!this.layer.clusterAreaDisplay) {
             //area should not be displayed at all so destroy the nodes
@@ -856,7 +904,7 @@ class FlareClusterVectorGroup extends VectorGroup {
         vector.clusterGroup.moveToFront();
         let scaleAnims: any[] = [];
 
-        if (vector.areaVector && this.layer.clusterAreaDisplay === "activated") {
+        if (vector.areaVector && vector.areaVector.shape && this.layer.clusterAreaDisplay === "activated") {
             //add the area vector shape into the dom and add an activated class
             this.surface.rawNode.appendChild(vector.areaVector.shape.rawNode);
             vector.areaVector.shape.moveToBack();
@@ -887,7 +935,7 @@ class FlareClusterVectorGroup extends VectorGroup {
         query(".cluster-object", this.surface.rawNode).forEach(domConstruct.destroy);
         this.removeClassFromNode(vector.clusterGroup.rawNode, "activated", 5);
 
-        if (vector.areaVector && this.layer.clusterAreaDisplay === "activated") {
+        if (vector.areaVector && vector.areaVector.shape && this.layer.clusterAreaDisplay === "activated") {
             //remove the area vector from the dom
             this.removeClassFromNode(vector.areaVector.shape.rawNode, "activated", 5);
             this.removeNodeFromDom(vector.areaVector.shape.rawNode);
@@ -1095,7 +1143,7 @@ class FlareClusterVectorGroup extends VectorGroup {
 
     private getClusterVectorByGraphicId(id): any {
         for (var i = 0, len = this.clusterVectors.length; i < len; i++) {
-            if (this.clusterVectors[i].graphic.id === id) return this.clusterVectors[i];
+            if (this.clusterVectors[i].graphic.uid === id) return this.clusterVectors[i];
         }
         return undefined;
     }
@@ -1121,7 +1169,7 @@ class FlareClusterVectorGroup extends VectorGroup {
 
         setTimeout(() => {
             node.setAttribute("class", node.getAttribute("class") + " " + className);
-        }, timeoutMs);
+        }, timeoutMs); 
     }
 
     private removeClassFromNode(node, className, timeoutMs) {
@@ -1180,22 +1228,26 @@ export class FlareClusterLayerExternalRenderer {
         this.graphics = this.layerView.layerViewCore.graphicsCore.graphics;
 
         let layer = this.layerView.layer;
+
         //hide the area shapes and flare shapes by default
-        for (let g of this.loadedGraphics.items) {
+        if (this.loadedGraphics.items) {
+            for (let g of this.loadedGraphics.items) {
 
-            if (g.attributes.isFlare || g.attributes.isFlareText) {
-                g.visible = false;
+                if (g.attributes.isFlare || g.attributes.isFlareText) {
+                    g.visible = false;
+                }
+
+                //hide the area unless it's set to always display
+                if (g.attributes.isClusterArea && layer.clusterAreaDisplay !== "always") {
+                    g.visible = false;
+                }
+
             }
-
-            //hide the area unless it's set to always display
-            if (g.attributes.isClusterArea && layer.clusterAreaDisplay !== "always") {
-                g.visible = false;
-            }
-
         }
 
+
         if (this.activeCluster) {
-            //if a cluster is active make and teh area grpahic shold be displayed then make it visible.
+            //if a cluster is active and the area graphic should be displayed then make it visible.
             if (this.activeCluster.areaGraphic && layer.clusterAreaDisplay === "activated") {
                 this.activeCluster.areaGraphic.visible = true;
             }
@@ -1250,6 +1302,7 @@ export class FlareClusterLayerExternalRenderer {
         clusterGraphic.clusterGroup = clusterGroup;
 
         //Fake out creation of a dojo shape from graphic object using the temp vectorGroup _drawPoint function
+
         let webGeo = clusterGraphic.geometry.spatialReference.isWebMercator ? clusterGraphic.geometry : webMercatorUtils.geographicToWebMercator(clusterGraphic.geometry);
         let tempVector: any = {
             extent: clusterGraphic.geometry,
@@ -1258,6 +1311,11 @@ export class FlareClusterLayerExternalRenderer {
             symbol: clusterSymbol,
             projectedGeometry: webGeo
         };
+
+        //set some default props on the temp vector group object
+        let proj = this.vectorGroup["_projector"];
+        proj["_transformers"] = [];
+        proj["transform"] = [0, 0, 0, 0, 0, 0];
 
         let clusterShape = this.vectorGroup._drawPoint(this.surface, webGeo, clusterSymbol, tempVector, [0]);
         clusterShape.setFill(clusterSymbol.color);
@@ -1450,7 +1508,7 @@ export class FlareClusterLayerExternalRenderer {
     }
 
 
-    //svg hack to get flares and cluszter grpahic to show and be css animation friendly.
+    //svg hack to get flares and cluster grpahic to show and be css animation friendly.
     private setupSurface(activeCluster) {
         let sp = this.layerView.view.toScreen(activeCluster.geometry);
         domStyle.set(this.surface.rawNode, { zIndex: 1, overflow: "visible", width: "1px", height: "1px", left: sp.x + "px", top: sp.y + "px" });
@@ -1511,22 +1569,22 @@ export class FlareClusterLayerExternalRenderer {
             y: e.clientY - rect.top
         };
     }
-
-    //IE / Edge don't have the classList property on svg elements, so we can'tuse that add / remove classes - probably why dojo domClass doesn't work either.
-    //so do the following two functions are dodgy string hacks to add / remove classes. Uses a timeout for any css transitions to work correctly.
+     
+    //IE / Edge don't have the classList property on svg elements, so we can't use that add / remove classes - probably why dojo domClass doesn't work either.
+    //So the following two functions are dodgy string hacks to add / remove classes. Uses a timeout for any css transitions to work correctly.
     private addClassToNode(node, className, timeoutMs) {
 
         setTimeout(() => {
             node.setAttribute("class", node.getAttribute("class") + " " + className);
         }, timeoutMs);
     }
-     
+
     private removeClassFromNode(node, className, timeoutMs) {
         let currentClass = node.getAttribute("class");
         if (!currentClass) return;
         setTimeout(() => {
             node.setAttribute("class", currentClass.replace(" " + className, ""));
-        }, timeoutMs); 
+        }, timeoutMs);
     }
 
 }

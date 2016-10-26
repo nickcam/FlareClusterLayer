@@ -4,20 +4,30 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", 'esri/core/watchUtils', "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", 'esri/geometry/geometryEngine', "esri/geometry/SpatialReference", 'esri/views/3d/externalRenderers', "esri/views/2d/VectorGroup", 'dojo/on', 'dojox/gfx', 'dojo/dom-construct', 'dojo/query', 'dojo/dom-attr', 'dojo/dom-style'], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, externalRenderers, VectorGroup, on, gfx, domConstruct, query, domAttr, domStyle) {
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", 'esri/core/watchUtils', "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", 'esri/geometry/geometryEngine', "esri/geometry/SpatialReference", "esri/geometry/Extent", 'esri/views/3d/externalRenderers', "esri/views/2d/VectorGroup", "esri/views/2d/viewpointUtils", "esri/core/accessorSupport/decorators", 'dojo/on', 'dojox/gfx', 'dojo/dom-construct', 'dojo/query', 'dojo/dom-attr', 'dojo/dom-style'], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, Extent, externalRenderers, VectorGroup, viewpointUtils, accessorSupportDecorators, on, gfx, domConstruct, query, domAttr, domStyle) {
     "use strict";
+    var baseGraphicsLayer = accessorSupportDecorators.declared(GraphicsLayer);
     var FlareClusterLayer = (function (_super) {
         __extends(FlareClusterLayer, _super);
         function FlareClusterLayer(options) {
             var _this = this;
             _super.call(this, options);
-            this.layerViews = [];
-            this.viewLoadCount = 0;
-            this.viewPopupMessageEnabled = true;
             //set the defaults
             if (!options) {
                 options = {};
             }
+            this.layerViews = [];
+            this.viewLoadCount = 0;
+            this.viewPopupMessageEnabled = true;
             this.singlePopupTemplate = options.singlePopupTemplate;
             this.clusterRatio = options.clusterRatio || 75;
             this.clusterToScale = options.clusterToScale || 2000000;
@@ -65,8 +75,8 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         FlareClusterLayer.prototype.layerViewCreated = function (evt) {
             var _this = this;
             if (evt.layerView.view.type === "2d") {
-                //this is map view so set up a watch to find out when the vector group has been created
-                watchUtils.once(evt.layerView._graphicsView, "group", function (vectorGroup, b, c, graphicsView) { return _this.vectorGroupCreated(vectorGroup, b, c, graphicsView); });
+                //this is map view so set up a watch to find out when the vector group has been created. Since 4.1 - use the gfx poroperty pm the graphicsView instead of group??
+                watchUtils.whenDefinedOnce(evt.layerView._graphicsView, "gfx", function (vectorGroup, b, c, graphicsView) { return _this.vectorGroupCreated(vectorGroup, b, c, graphicsView); });
             }
             else {
                 //this is 3d so add a custom external rendeder to hook into webgl pipeline to do things.
@@ -111,23 +121,24 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             var parentDiv = graphicsView.gfx._parent;
             var newStyle = parentDiv.getAttribute("style") + ";z-index:10";
             parentDiv.setAttribute("style", newStyle);
+            var existingGroup = graphicsView.group;
             graphicsView.group = new FlareClusterVectorGroup({
-                view: vectorGroup.view,
-                x: vectorGroup.x,
-                y: vectorGroup.y,
-                resolution: vectorGroup.resolution,
-                rotation: vectorGroup.rotation,
-                surface: vectorGroup.surface,
-                layer: vectorGroup.layer
+                view: existingGroup.view,
+                x: existingGroup.x,
+                y: existingGroup.y,
+                resolution: existingGroup.resolution,
+                rotation: existingGroup.rotation,
+                surface: existingGroup.surface,
+                layer: this
             });
             this.readyToDraw = true;
             if (this.queuedInitialDraw) {
-                this.drawData();
+                this.drawData(existingGroup.view);
                 this.queuedInitialDraw = false;
             }
         };
-        FlareClusterLayer.prototype.removeAll = function () {
-            _super.prototype.removeAll.call(this);
+        FlareClusterLayer.prototype.clear = function () {
+            this.removeAll();
             for (var _i = 0, _a = this.layerViews; _i < _a.length; _i++) {
                 var lv = _a[_i];
                 if (lv._graphicsView && lv._graphicsView.group) {
@@ -155,7 +166,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //no data set and no active (visible) view found so return
             if (!this.data || !this.activeView)
                 return;
-            this.removeAll();
+            this.clear();
             console.time("draw-data");
             this.isClustered = this.clusterToScale < this.activeView["scale"];
             console.log("draw data " + this.activeView.type);
@@ -166,13 +177,12 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //clusters will not be drawn if the map pans over the international dateline.
             var webExtent = !this.activeView.extent.spatialReference.isWebMercator ? webMercatorUtils.project(this.activeView.extent, new SpatialReference({ "wkid": 102100 })) : this.activeView.extent;
             var extentIsUnioned = false;
-            //TODO: normalizing not working in 4.0 yet.
-            //var normalizedWebExtent = webExtent.normalize();
-            //webExtent = normalizedWebExtent[0];
-            //if (normalizedWebExtent.length > 1) {
-            //    webExtent = webExtent.union(normalizedWebExtent[1]);
-            //    extentIsUnioned = true;
-            //}
+            var normalizedWebExtent = webExtent.normalize();
+            webExtent = normalizedWebExtent[0];
+            if (normalizedWebExtent.length > 1) {
+                webExtent = webExtent.union(normalizedWebExtent[1]);
+                extentIsUnioned = true;
+            }
             if (this.isClustered) {
                 this.createClusterGrid(webExtent, extentIsUnioned);
             }
@@ -267,10 +277,14 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             return true;
         };
         FlareClusterLayer.prototype.createSingle = function (obj) {
+            var point = new Point({
+                x: obj[this.xPropertyName], y: obj[this.yPropertyName], z: obj[this.zPropertyName]
+            });
+            if (!point.spatialReference.isWebMercator) {
+                point = webMercatorUtils.geographicToWebMercator(point);
+            }
             var graphic = new Graphic({
-                geometry: new Point({
-                    x: obj[this.xPropertyName], y: obj[this.yPropertyName], z: obj[this.zPropertyName]
-                }),
+                geometry: point,
                 attributes: obj
             });
             graphic.popupTemplate = this.singlePopupTemplate;
@@ -281,7 +295,11 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             this.add(graphic);
         };
         FlareClusterLayer.prototype.createCluster = function (cluster) {
+            //make sure all geometries added to Graphic objects are in web mercator otherwise wrap around doesn't work.
             var point = new Point({ x: cluster.x, y: cluster.y });
+            if (!point.spatialReference.isWebMercator) {
+                point = webMercatorUtils.geographicToWebMercator(point);
+            }
             var attributes = {
                 x: cluster.x,
                 y: cluster.y,
@@ -302,7 +320,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                 geometry: point,
                 attributes: {
                     isClusterText: true,
-                    clusterGraphicId: graphic["id"]
+                    clusterGraphicId: graphic["uid"]
                 },
                 symbol: textSymbol
             });
@@ -323,12 +341,15 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     x: cluster.x,
                     y: cluster.y,
                     clusterCount: cluster.clusterCount,
-                    clusterGraphicId: graphic["id"],
+                    clusterGraphicId: graphic["uid"],
                     isClusterArea: true
                 };
                 if (area.rings && area.rings.length > 0) {
                     var areaPoly = new Polygon(); //had to create a new polygon and fill it with the ring of the calculated area for SceneView to work.
                     areaPoly = areaPoly.addRing(area.rings[0]);
+                    if (!areaPoly.spatialReference.isWebMercator) {
+                        areaPoly = webMercatorUtils.geographicToWebMercator(areaPoly);
+                    }
                     areaGraphic = new Graphic({ geometry: areaPoly, attributes: areaAttr });
                     var areaInfo = this.areaRenderer.getClassBreakInfo(areaGraphic);
                     areaGraphic.symbol = areaInfo.symbol;
@@ -387,7 +408,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     isSummaryFlare: false,
                     tooltipText: "",
                     flareTextGraphic: undefined,
-                    clusterGraphicId: clusterGraphic["id"]
+                    clusterGraphicId: clusterGraphic["uid"]
                 };
                 var flareTextAttributes = {};
                 //Do a couple of things differently if this is a summary flare or not
@@ -412,7 +433,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     geometry: clusterGraphic.geometry,
                     popupTemplate: null
                 });
-                //flareGraphic.popupTemplate = null;
                 flareGraphics.push(flareGraphic);
                 if (fo.flareText) {
                     var textSymbol = this.flareTextSymbol.clone();
@@ -466,8 +486,12 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                 }
             }
         };
+        FlareClusterLayer = __decorate([
+            accessorSupportDecorators.subclass("FlareClusterLayer"), 
+            __metadata('design:paramtypes', [Object])
+        ], FlareClusterLayer);
         return FlareClusterLayer;
-    }(GraphicsLayer));
+    }(baseGraphicsLayer));
     exports.FlareClusterLayer = FlareClusterLayer;
     var GridCluster = (function () {
         function GridCluster() {
@@ -504,7 +528,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             }
             return _super.prototype.removeVector.call(this, a);
         };
-        FlareClusterVectorGroup.prototype.draw = function () {
+        FlareClusterVectorGroup.prototype.draw = function (a) {
             var _this = this;
             //only applies to 2d and only if there's vectors to draw
             if (this.layer.activeView.type !== "2d" || this.vectors.length === 0) {
@@ -513,13 +537,22 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //destroy all cluster objects
             query(".cluster-object", this.surface.rawNode).forEach(domConstruct.destroy);
             this.clusterVectors = [];
-            this.transform || _super.prototype._updateTransform.call(this);
+            this.transform || this._updateTransform();
+            var view = this.view, b = view.state;
+            if (0 < b.width - b.worldScreenWidth) {
+                var d = b.size.concat();
+                d[0] = Math.min(d[0], Math.round(b.worldScreenWidth));
+                this._viewExtent = viewpointUtils.getExtent(new Extent, b.viewpoint, d);
+            }
+            else
+                this._viewExtent = view.extent;
+            this._viewGeoExtent = view.spatialReference.isWebMercator ? webMercatorUtils.webMercatorToGeographic(this._viewExtent) : null;
             this.surface.openBatch();
-            var a, c, b;
-            c = 0;
-            for (b = this.vectors.length; c < b; c++) {
-                (a = this.vectors[c]) && this.drawVector(a);
-                var v = this.vectors[c];
+            var index = 0;
+            var c;
+            for (d = this.vectors.length; index < d; index++) {
+                (c = this.vectors[index]) && _super.prototype.drawVector.call(this, c, a);
+                var v = this.vectors[index];
                 if (!v.shape)
                     continue;
                 if (v.graphic.attributes.isCluster) {
@@ -540,7 +573,9 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                 }
                 else if (v.graphic.attributes.isClusterArea) {
                     v.shape.rawNode.setAttribute("class", "cluster-area");
-                    v.shape.moveToBack();
+                    if (v.shape.rawNode.parentNode) {
+                        v.shape.moveToBack();
+                    }
                     if (this.layer.clusterAreaDisplay === "activated") {
                         //remove the node from the dom (try and keep it as light as possible)
                         this.removeNodeFromDom(v.shape.rawNode);
@@ -568,7 +603,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     //remove the node from the dom (try and keep it as light as possible)
                     this.removeNodeFromDom(v.shape.rawNode);
                     //assign to a property on the flare shape vector - the flare shape vector should be the previous entry in the array
-                    var flareShapeVector = this.vectors[c - 1];
+                    var flareShapeVector = this.vectors[index - 1];
                     if (flareShapeVector.graphic.attributes.isFlare) {
                         flareShapeVector.textVector = v;
                     }
@@ -621,7 +656,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //Handle scaling and moving to front as well.
             vector.clusterGroup.moveToFront();
             var scaleAnims = [];
-            if (vector.areaVector && this.layer.clusterAreaDisplay === "activated") {
+            if (vector.areaVector && vector.areaVector.shape && this.layer.clusterAreaDisplay === "activated") {
                 //add the area vector shape into the dom and add an activated class
                 this.surface.rawNode.appendChild(vector.areaVector.shape.rawNode);
                 vector.areaVector.shape.moveToBack();
@@ -644,7 +679,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //destroy all flare objects in this cluster group
             query(".cluster-object", this.surface.rawNode).forEach(domConstruct.destroy);
             this.removeClassFromNode(vector.clusterGroup.rawNode, "activated", 5);
-            if (vector.areaVector && this.layer.clusterAreaDisplay === "activated") {
+            if (vector.areaVector && vector.areaVector.shape && this.layer.clusterAreaDisplay === "activated") {
                 //remove the area vector from the dom
                 this.removeClassFromNode(vector.areaVector.shape.rawNode, "activated", 5);
                 this.removeNodeFromDom(vector.areaVector.shape.rawNode);
@@ -806,7 +841,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterVectorGroup.prototype.getClusterVectorByGraphicId = function (id) {
             for (var i = 0, len = this.clusterVectors.length; i < len; i++) {
-                if (this.clusterVectors[i].graphic.id === id)
+                if (this.clusterVectors[i].graphic.uid === id)
                     return this.clusterVectors[i];
             }
             return undefined;
@@ -871,18 +906,20 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             this.graphics = this.layerView.layerViewCore.graphicsCore.graphics;
             var layer = this.layerView.layer;
             //hide the area shapes and flare shapes by default
-            for (var _i = 0, _a = this.loadedGraphics.items; _i < _a.length; _i++) {
-                var g = _a[_i];
-                if (g.attributes.isFlare || g.attributes.isFlareText) {
-                    g.visible = false;
-                }
-                //hide the area unless it's set to always display
-                if (g.attributes.isClusterArea && layer.clusterAreaDisplay !== "always") {
-                    g.visible = false;
+            if (this.loadedGraphics.items) {
+                for (var _i = 0, _a = this.loadedGraphics.items; _i < _a.length; _i++) {
+                    var g = _a[_i];
+                    if (g.attributes.isFlare || g.attributes.isFlareText) {
+                        g.visible = false;
+                    }
+                    //hide the area unless it's set to always display
+                    if (g.attributes.isClusterArea && layer.clusterAreaDisplay !== "always") {
+                        g.visible = false;
+                    }
                 }
             }
             if (this.activeCluster) {
-                //if a cluster is active make and teh area grpahic shold be displayed then make it visible.
+                //if a cluster is active and the area graphic should be displayed then make it visible.
                 if (this.activeCluster.areaGraphic && layer.clusterAreaDisplay === "activated") {
                     this.activeCluster.areaGraphic.visible = true;
                 }
@@ -930,6 +967,10 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                 symbol: clusterSymbol,
                 projectedGeometry: webGeo
             };
+            //set some default props on the temp vector group object
+            var proj = this.vectorGroup["_projector"];
+            proj["_transformers"] = [];
+            proj["transform"] = [0, 0, 0, 0, 0, 0];
             var clusterShape = this.vectorGroup._drawPoint(this.surface, webGeo, clusterSymbol, tempVector, [0]);
             clusterShape.setFill(clusterSymbol.color);
             clusterGroup.add(clusterShape);
@@ -1074,7 +1115,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             this.activeCluster = null;
             externalRenderers.requestRender(this.layerView.view);
         };
-        //svg hack to get flares and cluszter grpahic to show and be css animation friendly.
+        //svg hack to get flares and cluster grpahic to show and be css animation friendly.
         FlareClusterLayerExternalRenderer.prototype.setupSurface = function (activeCluster) {
             var sp = this.layerView.view.toScreen(activeCluster.geometry);
             domStyle.set(this.surface.rawNode, { zIndex: 1, overflow: "visible", width: "1px", height: "1px", left: sp.x + "px", top: sp.y + "px" });
@@ -1126,8 +1167,8 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                 y: e.clientY - rect.top
             };
         };
-        //IE / Edge don't have the classList property on svg elements, so we can'tuse that add / remove classes - probably why dojo domClass doesn't work either.
-        //so do the following two functions are dodgy string hacks to add / remove classes. Uses a timeout for any css transitions to work correctly.
+        //IE / Edge don't have the classList property on svg elements, so we can't use that add / remove classes - probably why dojo domClass doesn't work either.
+        //So the following two functions are dodgy string hacks to add / remove classes. Uses a timeout for any css transitions to work correctly.
         FlareClusterLayerExternalRenderer.prototype.addClassToNode = function (node, className, timeoutMs) {
             setTimeout(function () {
                 node.setAttribute("class", node.getAttribute("class") + " " + className);
