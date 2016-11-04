@@ -3,7 +3,9 @@ A custom graphics layer that inherits from ArcGIS js graphics layer. Clustering 
 
 The clustering is performed using a grid system based on the current extent, the pixel dimensions of the map and a configurable cluster ratio that can be set to suit a data set.
 
-Support for both for 3.x and 4.0 arcgis js apis.
+Support for both for 3.x and 4.1 arcgis js apis.
+
+Note: The latest version won't work with arcgis v4.0, only v4.1. There's a 4.0 branch in this repo where you can get to the code that works for v4.0.
 
 ## Features
 
@@ -17,16 +19,16 @@ Support for both for 3.x and 4.0 arcgis js apis.
 
 - Configure the symbology to be whatever you want by using a renderer for the clusters and single symbols and an optional second renderer for the cluster boundaries.
 
-- Supports MapView (2d) and SceneView (3d) for api v4.0.
+- Supports MapView (2d) and SceneView (3d) for api v4.1.
 
 All of the options are explained in the constructor of the layer/s so just check out the code for a full explanation. 
 Demos are here:
 
 v3.x - http://flareclusterlayer.azurewebsites.net/index_v3.html
 
-v4.0 - http://flareclusterlayer.azurewebsites.net/index_v4.html 
+v4.1 - http://flareclusterlayer.azurewebsites.net/index_v4.html 
 
-## api v4.0 notes
+## api v4.1 notes
 
 I used typescript to build the v4 version (because typescript rocks), so you could either use the typecsript version and compile it to js in your own project or just use the compiled version in the fcl folder, same way the demo does.
 
