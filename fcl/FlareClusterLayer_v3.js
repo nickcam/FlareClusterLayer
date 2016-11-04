@@ -891,6 +891,9 @@ define([
             var willContainSummaryFlare = this.flareObjects.length > this.maxFlareCount;
             var flareCount = willContainSummaryFlare ? this.maxFlareCount : this.flareObjects.length;
 
+            //get the surface translate values if any
+            var surfaceTranslate = this._getSurfaceTranslate();
+
             //if there's an even amount of flares, position the first flare to the left, minus 180 from degree to do this.
             //for an add amount position the first flare on top, -90 to do this. Looks more symmetrical this way.
             var degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
@@ -951,8 +954,9 @@ define([
                 //Therefore if the map has a top offset applied to it the fo object will appear in 
                 //an incorrect spot on the map.  We must apply the offset to both the x and y points
                 //to ensure the point is relative to the map control.
+                //As of v3.18 also apply need to apply the surface translate values that may have been created by the api during panning.
                 var offsets = this.surface.rawNode.getBoundingClientRect();
-                var sp = new ScreenPoint(screenPoint.x - offsets.left, screenPoint.y - offsets.top);
+                var sp = new ScreenPoint(screenPoint.x - offsets.left + surfaceTranslate.x, screenPoint.y - offsets.top + surfaceTranslate.y);
                 fo.mapPoint = this.map.toMap(sp);
 
                 var attributes = fo.singleData ? lang.clone(fo.singleData) : {};
@@ -1234,6 +1238,27 @@ define([
             x = bbox.x + bbox.width / 2;
             y = bbox.y + bbox.height / 2
             return { x: x, y: y };
+        },
+
+        _getSurfaceTranslate: function(){
+            var translate = {
+                x: 0,
+                y: 0
+            };
+
+            //check if we could find a translate style property on the surface.
+            if(!this.surface || !this.surface.rawNode || !this.surface.rawNode.style.transform || this.surface.rawNode.style.transform.indexOf("translate") === -1) return translate;
+            
+            //parse the values from the translate string. Using some basic string manipulation, some regex guru could tidy this up I would think.
+            var transform = this.surface.rawNode.style.transform;
+            transform = transform.replace("translate(", "").replace(")", "");
+            var vals = transform.split(",");
+            if(vals.length !== 2) return translate;
+            vals[0] = parseInt(vals[0].replace("px", ""));
+            vals[1] = parseInt(vals[1].replace("px", ""));
+            translate.x = vals[0];
+            translate.y = vals[1];
+            return translate;
         },
 
         _animationEnd: function (layer) {
