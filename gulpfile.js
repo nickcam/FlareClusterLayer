@@ -22,7 +22,7 @@ gulp.task('typescript-compile', function () {
         .js.pipe(gulp.dest(tsProject.options.outDir));
 });
 
-//watch for changes on sass files and compile and copy when saved
+//watch for changes on ts files and compile and copy when saved
 gulp.task('watch', function () {
     return gulp.watch('typescript/**/*.ts', ['typescript-compile']); //watch typescript files to compile.
 });
