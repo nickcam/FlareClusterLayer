@@ -120,7 +120,7 @@
         /* Scale up the clusters when activated */
         .cluster-group.activated {     
             transform-origin: center; 
-            transform: scale(1.3);
+            transform: scale(1.2);
             transition: transform linear 0.4s;
         }
 
@@ -256,7 +256,6 @@
                     basemap: "gray"
                 });
 
-
                 mapView = new MapView({
                     map: map,
                     container: "mapView",
@@ -314,8 +313,10 @@
             });
 
             function initLayer(data) {
+
+       
                 //init the layer, more options are available and explained in the cluster layer constructor
-              
+
                 //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
                 var defaultSym = new SimpleMarkerSymbol({
                     size: 6,

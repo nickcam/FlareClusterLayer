@@ -82,8 +82,7 @@ let baseGraphicsLayer: BaseGraphicsLayerConstructor = accessorSupportDecorators.
 
 
 //TODO: 
-//  - resizing window throws out the clusters surface, need to force a redraw on window resize.
-//  - why is chrome on my pc fucked.
+// - why is chrome on my pc fucked.
 
 @accessorSupportDecorators.subclass("FlareClusterLayer")
 export class FlareClusterLayer extends baseGraphicsLayer {
@@ -818,8 +817,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         let clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
         for (let i = 0; i < flareCount; i++) {
 
-            //let flarePoint = this._getFlarePoint(clusterScreenPoint, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
-
             let flare = flares[i];
 
             //set some attribute data
@@ -893,7 +890,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             //create a group to hold flare object and text if needed.
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
             let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
-
+            
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");
             let flareElement = this._createClonedElementFromGraphic(f.graphic, f.flareGroup);
             f.flareGroup.rawNode.appendChild(flareElement);
@@ -933,7 +930,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             y: (buffer + clusterSymbolSize) * Math.sin(radian)
         }
 
-        //set the position by adding a transform
         flareGroup.setTransform({ dx: position.x, dy: position.y });
         return position;
     }
