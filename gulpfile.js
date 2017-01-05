@@ -1,6 +1,8 @@
 
 var gulp = require('gulp');
 var ts = require("gulp-typescript");
+var sourcemaps = require('gulp-sourcemaps');
+
 var tsProject = ts.createProject("tsconfig.json");
 
 //Task to copy dojo tpyings from node modules to typings folder. dojo typings don't work using typings tool - so we install them using npm then just copy them over from there.
@@ -17,9 +19,15 @@ gulp.task('copy-dojo-typings', function () {
 });
 
 gulp.task('typescript-compile', function () {
-    return tsProject.src()
-        .pipe(ts(tsProject))
-        .js.pipe(gulp.dest(tsProject.options.outDir));
+    var tsResult = tsProject.src()
+        .pipe(sourcemaps.init())
+        .pipe(ts(tsProject));
+
+    return tsResult.js
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(tsProject.options.outDir));
+
+
 });
 
 //watch for changes on ts files and compile and copy when saved

@@ -10,7 +10,7 @@
     "sourceMap": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
-  }, 
+  },
   "files": [
     "typescript/FlareClusterLayer_v4.ts"
   ]

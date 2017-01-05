@@ -9,7 +9,7 @@
 
     <title>Flare Cluster Layer Example</title>
 
-    <link rel="stylesheet" href="https://js.arcgis.com/4.1/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.2/esri/css/main.css">
 
     <style>
         html, body {
@@ -114,28 +114,16 @@
         }
 
          /* Set up some css rules to animate things */
-
-        /* The below two rules animate the creation of clusters */
-        .cluster-group {
-            transform-origin: center;
-            transform: scale(0);
-            -moz-transform: scale(1); /* Don't scale to 0 in firefox see notes below */
-        }
-      
-        .cluster-group.created  {
-            transform: scale(1);
-            transition: transform linear 0.2s;
-        }
-
+       
         /* Some rules to change the appearance of clusters and it's text when activated */
  
         /* Scale up the clusters when activated */
-        .cluster-group.activated {        
+        .cluster-group.activated {     
+            transform-origin: center; 
             transform: scale(1.3);
-            -moz-transform: scale(1); /* Don't scale up in firefox see notes below */
             transition: transform linear 0.4s;
         }
-            
+
          /* Change the appearance of clusters when activated */
         .cluster-group.activated .cluster {
             stroke: rgba(255,255,255,1);
@@ -151,38 +139,39 @@
 
 
         /* hide flares by default */
-        .cluster-group .flare-group {
+        .flare-group {
             opacity: 0;
         }
 
+       
        /* animate display of flares */
-        .cluster-group .flare-group.activated {
+        .flare-group.activated {
             opacity: 1;
             transition: opacity linear 0.06s;
         }
 
         /* this just chains the display of flares to occur one after the other using transition delay - could be a better way to do this natively but using SASS or LESS this would be much more concise */
-        .cluster-group .flare-group.activated:nth-of-type(1) {
+        .flare-group.activated:nth-of-type(1) {
             transition-delay: 0.06s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(2) {
+        .flare-group.activated:nth-of-type(2) {
             transition-delay: 0.12s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(3) {
+        .flare-group.activated:nth-of-type(3) {
             transition-delay: 0.18s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(4) {
+        .flare-group.activated:nth-of-type(4) {
             transition-delay: 0.24s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(5) {
+        .flare-group.activated:nth-of-type(5) {
             transition-delay: 0.30s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(6) {
+        .flare-group.activated:nth-of-type(6) {
             transition-delay: 0.36s;
         }
 
@@ -190,61 +179,14 @@
             transition-delay: 0.42s;
         }
 
-        .cluster-group .flare-group.activated:nth-of-type(8) {
+        .flare-group.activated:nth-of-type(8) {
             transition-delay: 0.48s;
         }
 
-        .cluster-area {
-            transform-origin: center;
-            transform: scale(0);
-            -moz-transform: scale(1); /* Don't scale up in firefox see notes below */
-        }
-
-        .cluster-area.activated {
-            transform: scale(1);
-            transition: transform linear 0.4s;
-        }
 
         /*
             Cross browser notes on the example CSS animations: 
             IE/Edge: These POS's don't support transforms on svg elements using css, so the css transform animations won't work.
-            Firefox: Firefox's transform-origin behaves differently to Chrome...as in "keywords and percentages refer to the canvas instead of the object itself" - https://developer.mozilla.org/en/docs/Web/CSS/transform-origin
-                     This means scaling won't work out of the box in firefox, the svg element will move around, so is disabled using -moz- tags in the default styles.
-                     To get it to work you have to set the firefox preference svg.transform-box.enabled to true, then use the following styles instead.
-                     Not ideal as each user will have to set this preference in their installation, but could work as an enterprise wide setting I guess.
-                     See this bug - https://bugzilla.mozilla.org/show_bug.cgi?id=1209061 - apparentely firefox is on spec, for the moment, the spec will change to match Chrome's default in time. 
-          
-            Firefox replacement styles with svg.transform-box.enabled set to true
-
-            .cluster-group {
-                transform-origin: center;
-                transform: scale(0);
-            }
-      
-            .cluster-group.created  {
-                transform-box: fill-box;  
-                transform: scale(1);
-                transition: transform linear 0.2s;
-            }
-
-
-            .cluster-group.activated {
-                transform-box: fill-box;            
-                transform: scale(1.3);
-                transition: transform linear 0.4s;
-            }
-
-            .cluster-area {
-                transform-origin: center;
-                transform: scale(0);
-            }
-
-            .cluster-area.activated {
-                transform-box: fill-box;
-                transform: scale(1);
-                transition: transform linear 0.4s;
-            }
-
         */
 
     </style>
@@ -261,19 +203,18 @@
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.1/"></script>
+    <script src="https://js.arcgis.com/4.2/"></script>
 
     <script type="text/javascript">
 
         var map,
             mapView,
-            sceneView,
+            sceneView, 
             activeView,
             graphics,
             clusterLayer;
 
        //set some defaults
-        var preClustered = true;
         var maxSingleFlareCount = 8;
         var areaDisplayMode = "activated";
 
@@ -373,7 +314,6 @@
             });
 
             function initLayer(data) {
-
                 //init the layer, more options are available and explained in the cluster layer constructor
               
                 //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
@@ -399,31 +339,45 @@
                 renderer.addClassBreakInfo(1001, Infinity, xlSymbol);
 
                 var areaRenderer;
-                if (areaDisplayMode) {
-                    //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
-                    var defaultAreaSym = new SimpleFillSymbol({
-                        style: "solid",
-                        color: [0, 0, 0, 0.2],
-                        outline: new SimpleLineSymbol({ color: [0, 0, 0, 0.3] })
-                    });
-
-                    areaRenderer = new ClassBreaksRenderer({
-                        defaultSymbol: defaultAreaSym
-                    });
-                    areaRenderer.field = "clusterCount";
-
-                    var smAreaSymbol = new SimpleFillSymbol({ color: [255, 204, 102, 0.8], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }) });
-                    var mdAreaSymbol = new SimpleFillSymbol({ color: [102, 204, 255, 0.8], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }) });
-                    var lgAreaSymbol = new SimpleFillSymbol({ color: [51, 204, 51, 0.8], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }) });
-                    var xlAreaSymbol = new SimpleFillSymbol({ color: [250, 65, 74, 0.8], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }) });
-
-                    areaRenderer.addClassBreakInfo(0, 19, smAreaSymbol);
-                    areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
-                    areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
-                    areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
-                    
-                }
                 
+                //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
+                var defaultAreaSym = new SimpleFillSymbol({
+                    style: "solid",
+                    color: [0, 0, 0, 0.2],
+                    outline: new SimpleLineSymbol({ color: [0, 0, 0, 0.3] })
+                });
+
+                areaRenderer = new ClassBreaksRenderer({
+                    defaultSymbol: defaultAreaSym
+                });
+                areaRenderer.field = "clusterCount";
+
+                var smAreaSymbol = new SimpleFillSymbol({ color: [255, 204, 102, 0.4], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8], style: "dash" }) });
+                var mdAreaSymbol = new SimpleFillSymbol({ color: [102, 204, 255, 0.4], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8], style: "dash" }) });
+                var lgAreaSymbol = new SimpleFillSymbol({ color: [51, 204, 51, 0.4], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8], style: "dash" }) });
+                var xlAreaSymbol = new SimpleFillSymbol({ color: [250, 65, 74, 0.4], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8], style: "dash" }) });
+
+                areaRenderer.addClassBreakInfo(0, 19, smAreaSymbol);
+                areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
+                areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
+                areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
+                    
+                //Set up another class breaks renderer to style the flares individually
+                var flareRenderer = new ClassBreaksRenderer({
+                    defaultSymbol: renderer.defaultSymbol
+                });
+                flareRenderer.field = "clusterCount";
+
+                var smFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [255, 204, 102, 0.8], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }) });
+                var mdFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [102, 204, 255, 0.8], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }) });
+                var lgFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [51, 204, 51, 0.8], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }) });
+                var xlFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [250, 65, 74, 0.8], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }) });
+
+                flareRenderer.addClassBreakInfo(0, 19, smFlareSymbol);
+                flareRenderer.addClassBreakInfo(20, 150, mdFlareSymbol);
+                flareRenderer.addClassBreakInfo(151, 1000, lgFlareSymbol);
+                flareRenderer.addClassBreakInfo(1001, Infinity, xlFlareSymbol);
+
                 //set up a popup template
                 var popupTemplate = new PopupTemplate({
                     title: "{name}",
@@ -440,22 +394,23 @@
                
                 var options = {
                     id: "flare-cluster-layer",
-                    renderer: renderer,
+                    clusterRenderer: renderer,
                     areaRenderer: areaRenderer,
+                    flareRenderer: flareRenderer,
                     singlePopupTemplate: popupTemplate,
                     spatialReference: new SpatialReference({ "wkid": 4326 }),
                     subTypeFlareProperty: "facilityType",
                     singleFlareTooltipProperty: "name",
                     displaySubTypeFlares: true,
                     maxSingleFlareCount: maxSingleFlareCount,                    
-                    preClustered: preClustered,
                     clusterRatio: 75,
-                    clusterAreaDisplay: areaDisplayMode
+                    clusterAreaDisplay: areaDisplayMode,
+                    data: data
                 }
 
                 clusterLayer = new fcl.FlareClusterLayer(options);
                 map.add(clusterLayer);
-                clusterLayer.setData(data);
+                
             }
 
             function clearLayer() {
@@ -468,7 +423,7 @@
 
             on(dom.byId("area-mode"), "change", function (evt) {
                 clusterLayer.clusterAreaDisplay = this.value;
-                clusterLayer.drawData();
+                clusterLayer.draw();
             });
 
             on(dom.byId("view-mode"), "change", function (evt) {
@@ -510,7 +465,7 @@
                 }
 
                 //when switching views need to force a recluster
-                clusterLayer.drawData(view);
+                clusterLayer.draw(view);
                 activeView = view;
             }
 
@@ -557,7 +512,7 @@
         </div>
 
         <div id="menu" >
-            <span id="close-menu" title="Hide options">&times</span>
+            <span id="close-menu" title="Hide options">&times;</span>
             <div><label for="view-mode">View mode:</label></div>
             <div>
                 <select id="view-mode">

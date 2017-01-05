@@ -2,8 +2,6 @@
 
 
 import * as GraphicsLayer from "esri/layers/GraphicsLayer";
-import * as FeatureLayer from "esri/layers/FeatureLayer";
-import * as GroupLayer from "esri/layers/GroupLayer";
 import * as ClassBreaksRenderer from "esri/renderers/ClassBreaksRenderer";
 import * as PopupTemplate from "esri/PopupTemplate";
 import * as SimpleMarkerSymbol from "esri/symbols/SimpleMarkerSymbol";
@@ -15,49 +13,55 @@ import * as View from 'esri/views/View';
 import * as webMercatorUtils from "esri/geometry/support/webMercatorUtils";
 import * as Graphic from "esri/Graphic";
 import * as Point from "esri/geometry/Point";
+import * as ScreenPoint from "esri/geometry/ScreenPoint";
 import * as Multipoint from "esri/geometry/Multipoint";
 import * as Polygon from "esri/geometry/Polygon";
 import * as geometryEngine from 'esri/geometry/geometryEngine';
 import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
-import * as externalRenderers from 'esri/views/3d/externalRenderers';
-import * as VectorGroup from "esri/views/2d/VectorGroup";
-import * as viewpointUtils from "esri/views/2d/viewpointUtils";
-import * as accessorSupportDecorators from "esri/core/accessorSupport/decorators";
+import * as externalRenderers from "esri/views/3d/externalRenderers";
 
+import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
+import * as Projector from "esri/views/2d/engine/graphics/Projector";
+ 
+import * as accessorSupportDecorators from "esri/core/accessorSupport/decorators";
+ 
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
 import * as domConstruct from 'dojo/dom-construct';
 import * as query from 'dojo/query';
+import * as dom from 'dojo/dom';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
-import * as deferred from 'dojo/Deferred';
 
-interface FlareClusterLayerProperties extends __esri.GroupLayerProperties {
+
+interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
+
+    clusterRenderer: ClassBreaksRenderer;
 
     singleRenderer?: any;
-    renderer?: ClassBreaksRenderer;
+    singleSymbol?: SimpleMarkerSymbol;
     areaRenderer?: ClassBreaksRenderer;
+    flareRenderer?: ClassBreaksRenderer;
+
     singlePopupTemplate?: PopupTemplate;
     spatialReference?: SpatialReference;
 
     clusterRatio?: number;
     clusterToScale?: number;
+    clusterMinCount?: number;
     clusterAreaDisplay?: string;
 
+    displayFlares?: boolean;
     maxFlareCount?: number;
     maxSingleFlareCount?: number;
     singleFlareTooltipProperty?: string;
-
     flareSymbol?: SimpleMarkerSymbol;
+    flareBufferPixels?: number;
     textSymbol?: TextSymbol;
     flareTextSymbol?: TextSymbol;
-    clusterMinCount?: number;
-    flareShowMode?: string;
-
     displaySubTypeFlares?: boolean;
     subTypeFlareProperty?: string;
-    refreshOnStationary?: boolean;
 
     xPropertyName?: string;
     yPropertyName?: string;
@@ -66,58 +70,73 @@ interface FlareClusterLayerProperties extends __esri.GroupLayerProperties {
     filters?: PointFilter[];
 
     data?: any[];
+
 }
 
 
 //This is how you have to extend classes in arcgis api that are a subclass of Accessor.
 //Will likely change in future releases. See these links - https://github.com/Esri/jsapi-resources/issues/40 & https://github.com/ycabon/extend-accessor-example
-interface BaseGroupLayer extends GroupLayer { }
-interface BaseGroupLayerConstructor { new (options?: __esri.GraphicsLayerProperties): BaseGroupLayer; }
-let baseGroupLayer: BaseGroupLayerConstructor = accessorSupportDecorators.declared(<any>GroupLayer);
+interface BaseGraphicsLayer extends GraphicsLayer { }
+interface BaseGraphicsLayerConstructor { new (options?: __esri.GraphicsLayerProperties): BaseGraphicsLayer; }
+let baseGraphicsLayer: BaseGraphicsLayerConstructor = accessorSupportDecorators.declared(<any>GraphicsLayer);
+
+
+//TODO: 
+//  - resizing window throws out the clusters surface, need to force a redraw on window resize.
+//  - why is chrome on my pc fucked.
 
 @accessorSupportDecorators.subclass("FlareClusterLayer")
-export class FlareClusterLayer extends baseGroupLayer {
+export class FlareClusterLayer extends baseGraphicsLayer {
 
-    singlePopupTemplate: PopupTemplate;
     singleRenderer: any;
-    renderer: ClassBreaksRenderer;
+    singleSymbol: SimpleMarkerSymbol;
+    singlePopupTemplate: PopupTemplate;
+
+    clusterRenderer: ClassBreaksRenderer;
     areaRenderer: ClassBreaksRenderer;
+    flareRenderer: ClassBreaksRenderer;
+
     spatialReference: SpatialReference;
-    refreshOnStationary: boolean = true;
-    gridClusters: GridCluster[];
+
     clusterRatio: number;
     clusterToScale: number;
     clusterMinCount: number;
     clusterAreaDisplay: string;
+
+    displayFlares: boolean;
+    maxFlareCount: number;
     maxSingleFlareCount: number;
     singleFlareTooltipProperty: string;
-    maxFlareCount: number;
     flareSymbol: SimpleMarkerSymbol;
+    flareBufferPixels: number;
     textSymbol: TextSymbol;
     flareTextSymbol: TextSymbol;
-    flareShowMode: string;
-    xPropertyName: string;
-    yPropertyName: string; 
-    zPropertyName: string;
     displaySubTypeFlares: boolean;
     subTypeFlareProperty: string;
 
-    private _data: any[];
-    private _singleLayer: GraphicsLayer;
-    private _clusterLayer: GraphicsLayer;
-    private _areaLayer: GraphicsLayer;
-    private _flareLayer: GraphicsLayer;
+    xPropertyName: string;
+    yPropertyName: string;
+    zPropertyName: string;
+
+    filters: PointFilter[];
+
+    private _gridClusters: GridCluster[];
     private _isClustered: boolean;
-    private _activeView: View;
+    private _activeView: ActiveView;
     private _viewLoadCount: number = 0;
 
-    private get _currentExtent(): Extent {
-        return this._activeView ? this._activeView["extent"] : undefined;
-    }
+    private _readyToDraw: boolean;
+    private _queuedInitialDraw: boolean;
+    private _data: any[];
+    private _is2d: boolean;
 
-    private get _currentScale(): number {
-        return this._activeView ? this._activeView["scale"] : undefined;
-    }
+    private viewPopupMessageEnabled;
+
+    private _clusters: { [clusterId: number]: Cluster; } = {};
+    private _activeCluster: Cluster;
+
+    private _layerView2d: any;
+    private _layerView3d: any;
 
     constructor(options: FlareClusterLayerProperties) {
 
@@ -125,34 +144,43 @@ export class FlareClusterLayer extends baseGroupLayer {
 
         //set the defaults
         if (!options) {
-            options = {};
+            //missing required parameters
+            console.error("Missing required parameters to flare cluster layer constructor.");
+            return;
         }
 
         this.singlePopupTemplate = options.singlePopupTemplate;
+
+        //set up the clustering properties
         this.clusterRatio = options.clusterRatio || 75;
         this.clusterToScale = options.clusterToScale || 2000000;
         this.clusterMinCount = options.clusterMinCount || 2;
-        this.clusterAreaDisplay = options.clusterAreaDisplay || "activated";
         this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || "name";
-
+        if (options.clusterAreaDisplay) {
+            this.clusterAreaDisplay = options.clusterAreaDisplay === "none" ? undefined : options.clusterAreaDisplay;
+        }
         this.maxFlareCount = options.maxFlareCount || 8;
         this.maxSingleFlareCount = options.maxSingleFlareCount || 8;
+        this.displayFlares = options.displayFlares === false ? false : true; //default to true
+        this.displaySubTypeFlares = options.displaySubTypeFlares === true;
+        this.subTypeFlareProperty = options.subTypeFlareProperty || undefined;
+        this.flareBufferPixels = options.flareBufferPixels || 6;
 
-        this.areaRenderer = options.areaRenderer;
-        this.renderer = options.renderer;
-        this.singleRenderer = options.singleRenderer;
-
+        //data set property names
         this.xPropertyName = options.xPropertyName || "x";
         this.yPropertyName = options.yPropertyName || "y";
         this.zPropertyName = options.zPropertyName || "z";
 
-        this.displaySubTypeFlares = options.displaySubTypeFlares === true;
-        this.subTypeFlareProperty = options.subTypeFlareProperty || undefined;
+        //set up the symbology/renderer properties
+        this.clusterRenderer = options.clusterRenderer;
+        this.areaRenderer = options.areaRenderer;
+        this.singleRenderer = options.singleRenderer;
+        this.singleSymbol = options.singleSymbol;
+        this.flareRenderer = options.flareRenderer;
 
-        this.refreshOnStationary = options.refreshOnStationary === false ? false : true;
-
+        //add some default symbols or use the options values.
         this.flareSymbol = options.flareSymbol || new SimpleMarkerSymbol({
-            size: 13,
+            size: 14,
             color: new Color([0, 0, 0, 0.5]),
             outline: new SimpleLineSymbol({ color: new Color([255, 255, 255, 0.5]), width: 1 })
         });
@@ -171,74 +199,138 @@ export class FlareClusterLayer extends baseGroupLayer {
             font: {
                 size: 6,
                 family: "arial"
-            }
+            },
+            yoffset: -2
         });
 
+        //initial data
         this._data = options.data || undefined;
-
-        this._setupLayers();
 
         this.on("layerview-create", (evt) => this._layerViewCreated(evt));
 
         if (this._data) {
-            //this.drawData();
+            this.draw();
         }
     }
+
 
     private _layerViewCreated(evt) {
 
         if (evt.layerView.view.type === "2d") {
-            //this is map view so set up a watch to find out when the vector group has been created. Since 4.1 - use the gfx poroperty pm the graphicsView instead of group??
-            //watchUtils.whenDefinedOnce(evt.layerView._graphicsView, "gfx", (vectorGroup, b, c, graphicsView) => this.vectorGroupCreated(vectorGroup, b, c, graphicsView));
+            this._layerView2d = evt.layerView;
         }
         else {
-            //this is 3d so add a custom external rendeder to hook into webgl pipeline to do things.
-            //let fclExternalRenderer = new FlareClusterLayerExternalRenderer(evt.layerView);
-            //externalRenderers.add(evt.layerView.view, fclExternalRenderer);
+            this._layerView3d = evt.layerView;
         }
 
-        //Refresh the data when the view is stationary if not set to false in options.
-        if (this.refreshOnStationary) {
-            watchUtils.pausable(evt.layerView.view, "stationary", (isStationary, b, c, view) => this.viewStationary(isStationary, b, c, view));
-        }
+        //add a stationary watch on the view to do some stuff.
+        watchUtils.pausable(evt.layerView.view, "stationary", (isStationary, b, c, view) => this._viewStationary(isStationary, b, c, view));
 
-        //this.viewPopupMessageEnabled = evt.layerView.view.popup.messageEnabled;
+        this.viewPopupMessageEnabled = evt.layerView.view.popup.messageEnabled;
 
         //watch this property so we can not display popups for graphics we don't want to.
-        //watchUtils.watch(evt.layerView.view.popup.viewModel, "selectedFeature", (selectedFeature, b, c, viewModel) => this.viewPopupSelectedFeatureChange(selectedFeature, b, c, viewModel));
-
-        //this.layerViews.push(evt.layerView);
+        watchUtils.watch(evt.layerView.view.popup.viewModel, "selectedFeature", (selectedFeature, b, c, viewModel) => this._viewPopupSelectedFeatureChange(selectedFeature, b, c, viewModel));
 
         if (this._viewLoadCount === 0) {
             this._activeView = evt.layerView.view;
+
+            this._readyToDraw = true;
+            if (this._queuedInitialDraw) {
+                //we've been waiting for this to happen to draw
+                this.draw();
+                this._queuedInitialDraw = false;
+            }
         }
         this._viewLoadCount++;
+
+        //wire up some view events
+        this._addViewEvents(evt.layerView.view);
+
     }
+
+
+    private _viewPopupSelectedFeatureChange(selectedFeature, b, c, viewModel) {
+        //There has got to be an better way to not show popups for certain graphics!
+
+        if (!selectedFeature) {
+            //reset the popup message for the view so this layer doesn't affect other layers.
+            viewModel.view.popup.messageEnabled = this.viewPopupMessageEnabled;
+            return;
+        }
+
+        //if this is a cluster type graphic then hide the popup
+        if (selectedFeature.attributes.isFlare || selectedFeature.attributes.isCluster || selectedFeature.attributes.isClusterArea) {
+            viewModel.features = [];
+            viewModel.view.popup.messageEnabled = false;
+            viewModel.view.popup.close();
+        }
+    }
+
+    private _addViewEvents(view?: ActiveView) {
+        let v = view ? view : this._activeView;
+        if (!v.fclPointerMove) {
+            v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
+        }
+    }
+     
+
+    private _viewStationary(isStationary, b, c, view) {
+        
+        if (isStationary) {
+            if (this._data) {
+                this.draw();
+            }
+
+            //reaasign events if needed
+            this._addViewEvents();
+        }
+
+        if (!isStationary && this._activeCluster) {
+            //if moving deactivate cluster;
+            this._deactivateCluster();
+        }
+    }
+
+
+    clear() {
+        this.removeAll();
+        this._clusters = {};
+    }
+
 
     setData(data: any[], drawData: boolean = true) {
         this._data = data;
         if (drawData) {
-            this.drawData();
+            this.draw();
         }
     }
 
+    draw(activeView?: any) {
 
-    drawData(activeView?: any) {
-        
         if (activeView) {
             this._activeView = activeView;
         }
 
-        console.log('in draw data');
-        if(!this._activeView || !this._data) return;
+        //Not ready to draw yet so queue one up
+        if (!this._readyToDraw) {
+            this._queuedInitialDraw = true;
+            return;
+        }
+
+        if (!this._activeView || !this._data) return;
+
+        this._is2d = this._activeView.type === "2d";
+
+        //check to make sure we have an area renderer set if one needs to be
+        if (this.clusterAreaDisplay && !this.areaRenderer) {
+            console.error("FlareClusterLayer: areaRenderer must be set if clusterAreaDisplay is set.");
+            return;
+        }
 
         this.clear();
-        console.time("draw-data");
+        console.time("draw-data-" + this._activeView.type);
 
-        this._isClustered = this.clusterToScale < this._currentScale;
-
-        //console.log("draw data " + this.activeView.type);
-        console.log("draw data ");
+        this._isClustered = this.clusterToScale < this._scale();
 
         let graphics: Graphic[] = [];
 
@@ -246,9 +338,9 @@ export class FlareClusterLayer extends baseGroupLayer {
         //The webextent will need to be normalized since panning over the international dateline will cause
         //cause the extent to shift outside the -180 to 180 degree window.  If we don't normalize then the
         //clusters will not be drawn if the map pans over the international dateline.
-        let webExtent: any = !this._currentExtent.spatialReference.isWebMercator ? <Extent>webMercatorUtils.project(this._currentExtent, new SpatialReference({ "wkid": 102100 })) : this._currentExtent;
+        let webExtent: any = !this._extent().spatialReference.isWebMercator ? <Extent>webMercatorUtils.project(this._extent(), new SpatialReference({ "wkid": 102100 })) : this._extent();
         let extentIsUnioned = false;
-        
+
         let normalizedWebExtent = webExtent.normalize();
         webExtent = normalizedWebExtent[0];
         if (normalizedWebExtent.length > 1) {
@@ -266,9 +358,9 @@ export class FlareClusterLayer extends baseGroupLayer {
             obj = this._data[i];
 
             //check if filters are specified and continue if this object doesn't pass
-            //if (!this.passesFilter(obj)) {
-            //    continue;
-            //}
+            if (!this._passesFilter(obj)) {
+                continue;
+            }
 
             xVal = obj[this.xPropertyName];
             yVal = obj[this.yPropertyName];
@@ -288,8 +380,8 @@ export class FlareClusterLayer extends baseGroupLayer {
             if (this._isClustered) {
 
                 //loop cluster grid to see if it should be added to one
-                for (let j = 0, jLen = this.gridClusters.length; j < jLen; j++) {
-                    let cl = this.gridClusters[j];
+                for (let j = 0, jLen = this._gridClusters.length; j < jLen; j++) {
+                    let cl = this._gridClusters[j];
 
                     if (web[0] <= cl.extent.xmin || web[0] > cl.extent.xmax || web[1] <= cl.extent.ymin || web[1] > cl.extent.ymax) {
                         continue; //not here so carry on
@@ -332,71 +424,202 @@ export class FlareClusterLayer extends baseGroupLayer {
             }
             else {
                 //not clustered so just add every obj
-                //this.createSingle(obj);
+                this._createSingle(obj);
             }
         }
 
         if (this._isClustered) {
-            for (let i = 0, len = this.gridClusters.length; i < len; i++) {
-                if (this.gridClusters[i].clusterCount < this.clusterMinCount) {
-                    for (let j = 0, jlen = this.gridClusters[i].singles.length; j < jlen; j++) {
-                        //this.createSingle(this.gridClusters[i].singles[j]);
+            for (let i = 0, len = this._gridClusters.length; i < len; i++) {
+                if (this._gridClusters[i].clusterCount < this.clusterMinCount) {
+                    for (let j = 0, jlen = this._gridClusters[i].singles.length; j < jlen; j++) {
+                        this._createSingle(this._gridClusters[i].singles[j]);
                     }
                 }
-                else if (this.gridClusters[i].clusterCount > 1) {
-                    //this.createCluster(this.gridClusters[i]);
+                else if (this._gridClusters[i].clusterCount > 1) {
+                    this._createCluster(this._gridClusters[i]);
                 }
             }
         }
 
         //emit an event to signal drawing is complete.
         this.emit("draw-complete", {});
+        console.timeEnd(`draw-data-${this._activeView.type}`);
 
-        console.timeEnd("draw-data");
+        setTimeout(() => {
+            this._createSurface();
+        }, 10);
     }
 
-    
-    clear() {
-        this._singleLayer.removeAll();
-        this._clusterLayer.removeAll();
-        this._areaLayer.removeAll();
-        this._flareLayer.removeAll();
+    private _passesFilter(obj: any): boolean {
+        if (!this.filters || this.filters.length === 0) return true;
+        let passes = true;
+        for (let i = 0, len = this.filters.length; i < len; i++) {
+            let filter = this.filters[i];
+            if (obj[filter.propertyName] == null) continue;
 
-    }
+            let valExists = filter.propertyValues.indexOf(obj[filter.propertyName]) !== -1;
+            if (valExists) {
+                passes = filter.keepOnlyIfValueExists; //the value exists so return whether we should be keeping it or not.
+            }
+            else if (!valExists && filter.keepOnlyIfValueExists) {
+                passes = false; //return false as the value doesn't exist, and we should only be keeping point objects where it does exist.
+            }
 
-     private viewStationary(isStationary, b, c, view) {
-        if (this._data && isStationary) {
-            this._activeView = view;
-            this.drawData();
+            if (!passes) return false; //if it hasn't passed any of the filters return false;
         }
+
+        return passes;
     }
+
+    private _createSingle(obj) {
+        let point = new Point({
+            x: obj[this.xPropertyName], y: obj[this.yPropertyName], z: obj[this.zPropertyName]
+        });
+
+        if (!point.spatialReference.isWebMercator) {
+            point = <Point>webMercatorUtils.geographicToWebMercator(point);
+        }
+
+        let graphic = new Graphic({
+            geometry: point,
+            attributes: obj
+        });
+
+        graphic.popupTemplate = this.singlePopupTemplate;
+        if (this.singleRenderer) {
+            let symbol = this.singleRenderer.getSymbol(graphic, this._activeView);
+            graphic.symbol = symbol;
+        }
+        else if (this.singleSymbol) {
+            graphic.symbol = this.singleSymbol;
+        }
+        else {
+            //no symbology for singles defined, use the default symbol from the cluster renderer
+            graphic.symbol = this.clusterRenderer.defaultSymbol;
+        }
+
+        this.add(graphic);
+    }
+
+
+    private _createCluster(gridCluster: GridCluster) {
+
+        let cluster = new Cluster();
+        cluster.gridCluster = gridCluster;
+
+        //make sure all geometries added to Graphic objects are in web mercator otherwise wrap around doesn't work.
+        let point = new Point({ x: gridCluster.x, y: gridCluster.y });
+        if (!point.spatialReference.isWebMercator) {
+            point = <Point>webMercatorUtils.geographicToWebMercator(point);
+        }
+
+        let attributes: any = {
+            x: gridCluster.x,
+            y: gridCluster.y,
+            clusterCount: gridCluster.clusterCount,
+            isCluster: true,
+            clusterObject: gridCluster
+        }
+
+        cluster.clusterGraphic = new Graphic({
+            attributes: attributes,
+            geometry: point
+        });
+        cluster.clusterGraphic.symbol = this.clusterRenderer.getClassBreakInfo(cluster.clusterGraphic).symbol;
+
+        if (this._is2d && this._activeView.rotation) {
+            cluster.clusterGraphic.symbol["angle"] = 360 - this._activeView.rotation;
+        }
+        else {
+            cluster.clusterGraphic.symbol["angle"] = 0;
+        }
+
+        cluster.clusterId = cluster.clusterGraphic["uid"];
+        cluster.clusterGraphic.attributes.clusterId = cluster.clusterId;
+
+        //also create a text symbol to display the cluster count
+        let textSymbol = this.textSymbol.clone();
+        textSymbol.text = gridCluster.clusterCount.toString();
+        if (this._is2d && this._activeView.rotation) {
+            textSymbol.angle = 360 - this._activeView.rotation;
+        }
+
+        cluster.textGraphic = new Graphic({
+            geometry: point,
+            attributes: {
+                isClusterText: true,
+                isText: true,
+                clusterId: cluster.clusterId
+            },
+            symbol: textSymbol
+        });
+
+        //add an area graphic to display the bounds of the cluster if configured to
+        if (this.clusterAreaDisplay && gridCluster.points && gridCluster.points.length > 0) {
+
+            let mp = new Multipoint();
+            mp.points = gridCluster.points;
+            let area: any = geometryEngine.convexHull(mp, true); //use convex hull on the points to get the boundary
+
+            let areaAttr: any = {
+                x: gridCluster.x,
+                y: gridCluster.y,
+                clusterCount: gridCluster.clusterCount,
+                clusterId: cluster.clusterId,
+                isClusterArea: true
+            }
+
+            if (area.rings && area.rings.length > 0) {
+                let areaPoly = new Polygon(); //had to create a new polygon and fill it with the ring of the calculated area for SceneView to work.
+                areaPoly = areaPoly.addRing(area.rings[0]);
+
+                if (!areaPoly.spatialReference.isWebMercator) {
+                    areaPoly = <Polygon>webMercatorUtils.geographicToWebMercator(areaPoly);
+                }
+
+                cluster.areaGraphic = new Graphic({ geometry: areaPoly, attributes: areaAttr });
+                cluster.areaGraphic.symbol = this.areaRenderer.getClassBreakInfo(cluster.areaGraphic).symbol;
+
+            }
+        }
+
+        //add the graphics in order        
+        if (cluster.areaGraphic && this.clusterAreaDisplay === "always") {
+            this.add(cluster.areaGraphic);
+        }
+        this.add(cluster.clusterGraphic);
+        this.add(cluster.textGraphic);
+
+        this._clusters[cluster.clusterId] = cluster;
+    }
+
 
     private _createClusterGrid(webExtent: Extent, extentIsUnioned: boolean) {
 
         //get the total amount of grid spaces based on the height and width of the map (divide it by clusterRatio) - then get the degrees for x and y 
-        var xCount = Math.round(this._activeView.width / this.clusterRatio);
-        var yCount = Math.round(this._activeView.height / this.clusterRatio);
+        let xCount = Math.round(this._activeView.width / this.clusterRatio);
+        let yCount = Math.round(this._activeView.height / this.clusterRatio);
 
         //if the extent has been unioned due to normalization, double the count of x in the cluster grid as the unioning will halve it.
         if (extentIsUnioned) {
             xCount *= 2;
         }
 
-        var xw = (webExtent.xmax - webExtent.xmin) / xCount;
-        var yh = (webExtent.ymax - webExtent.ymin) / yCount;
+        let xw = (webExtent.xmax - webExtent.xmin) / xCount;
+        let yh = (webExtent.ymax - webExtent.ymin) / yCount;
 
-        var gsxmin, gsxmax, gsymin, gsymax;
+        let gsxmin, gsxmax, gsymin, gsymax;
 
         //create an array of clusters that is a grid over the visible extent. Each cluster contains the extent (in web merc) that bounds the grid space for it.
-        this.gridClusters = [];
+        this._gridClusters = [];
         for (let i = 0; i < xCount; i++) {
             gsxmin = webExtent.xmin + (xw * i);
             gsxmax = gsxmin + xw;
             for (let j = 0; j < yCount; j++) {
                 gsymin = webExtent.ymin + (yh * j);
                 gsymax = gsymin + yh;
-                var ext = { xmin: gsxmin, xmax: gsxmax, ymin: gsymin, ymax: gsymax };
-                this.gridClusters.push({
+                let ext = { xmin: gsxmin, xmax: gsxmax, ymin: gsymin, ymax: gsymax };
+                this._gridClusters.push({
                     extent: ext,
                     clusterCount: 0,
                     subTypeCounts: [],
@@ -410,25 +633,552 @@ export class FlareClusterLayer extends baseGroupLayer {
     }
 
     /**
-     * Setup the layers.
+     * Create an svg surface on the view if it doesn't already exist
+     * @param view
      */
-    _setupLayers() {
-        this._singleLayer = new GraphicsLayer();
-        this._clusterLayer = new GraphicsLayer();
-        this._areaLayer = new GraphicsLayer();
-        this._flareLayer = new GraphicsLayer();
-         
-        this.addMany([this._areaLayer, this._clusterLayer, this._singleLayer, this._flareLayer]);        
+    private _createSurface() {
 
-        this._clusterLayer["popupEnabled"] = false;
-        this._areaLayer["popupEnabled"] = false;
-        this._flareLayer["popupEnabled"] = false;
+        if (this._activeView.fclSurface) return;
+        let surfaceParentElement = undefined;
+        if (this._is2d) {
+            surfaceParentElement = this._layerView2d.container.element.parentElement || this._layerView2d.container.element.parentNode;
+        }
+        else {
+            surfaceParentElement = this._activeView.canvas.parentElement || this._activeView.canvas.parentNode;
+        }
+
+        let surface = gfx.createSurface(surfaceParentElement, "0", "0");
+        surface.containerGroup = surface.createGroup();
+
+        domStyle.set(surface.rawNode, { position: "absolute", top: "0", zIndex: -1 });
+        domAttr.set(surface.rawNode, "overflow", "visible");
+        domAttr.set(surface.rawNode, "class", "fcl-surface");
+        this._activeView.fclSurface = surface;
+
+        //This is a hack for IE. hitTest on the view doens't pick up any results unless the z-index of the layerView container is at least 1. So set it to 1, but also have to set the .esri-ui
+        //container to 2 otherwise it can't be clicked on as it's covered by the layer view container. meh!
+        if (this._is2d) {
+            domStyle.set(this._layerView2d.container.element, "z-index", "1");
+            query(".esri-ui").forEach(function (node: HTMLElement, index) {
+                domStyle.set(node, "z-index", "2");
+            });
+        }
+    }
+
+    private _viewPointerMove(evt) {
+        
+        let sp = new ScreenPoint({ x: evt.x, y: evt.y });
+
+        //if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
+        //TODO: would probably be better to check if the point is in the actual circle of the cluster group and it's flares instead of using the rectangle bounding box.
+        if (this._activeCluster) {
+            let bbox = this._activeCluster.clusterGroup.rawNode.getBoundingClientRect();
+            if (bbox) {
+                if (evt.x >= bbox.left && evt.x <= bbox.right && evt.y >= bbox.top && evt.y <= bbox.bottom) return;
+            }
+        }
+
+        this._activeView.hitTest(sp).then((response) => {
+            //console.log(response);
+            let graphics = response.results;
+            if (graphics.length === 0) {
+                this._deactivateCluster();
+                return;
+            }
+
+            
+            for (let i = 0, len = graphics.length; i < len; i++) {
+                let g = graphics[i].graphic;
+                if (g && (g.attributes.clusterId != null && !g.attributes.isClusterArea)) {
+                    let cluster = this._clusters[g.attributes.clusterId];
+                    this._activateCluster(cluster);
+                    return;
+                }
+                else {
+                    this._deactivateCluster();
+                }
+            }
+        });
+    }
+
+    private _activateCluster(cluster: Cluster) {
+       
+        if (this._activeCluster === cluster) {
+            return; //already active
+        }
+        this._deactivateCluster();
+
+        this._activeCluster = cluster;
+        this._initSurface();
+        this._initCluster();
+        this._initFlares();
+
+        this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+
+        if (this.clusterAreaDisplay === "activated") {
+            this._showGraphic(this._activeCluster.areaGraphic);
+        }
+
+        //console.log("activate cluster");
+    }
+
+    private _deactivateCluster() {
+  
+        if (!this._activeCluster) return;
+
+        this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+        this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
+
+        if (this.clusterAreaDisplay === "activated") {
+            this._hideGraphic(this._activeCluster.areaGraphic);
+        }
+
+        this._clearSurface();
+        this._activeCluster = undefined;
+
+        //console.log("DE-activate cluster");
+       
+    }
+
+
+    private _initSurface() {
+        if (!this._activeCluster) return;
+
+        let surface = this._activeView.fclSurface;
+        if (!surface) return;
+
+        let sp: ScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
+        domStyle.set(surface.rawNode, { zIndex: 11, overflow: "visible", width: "1px", height: "1px", left: sp.x + "px", top: sp.y + "px" });
+        domAttr.set(surface.rawNode, "overflow", "visible");
 
     }
 
-    
+    private _clearSurface() {
+        let surface = this._activeView.fclSurface;
+        query(">", surface.containerGroup.rawNode).forEach(domConstruct.destroy);
+        domStyle.set(surface.rawNode, { zIndex: -1, overflow: "hidden", top: "0px", left: "0px" });
+        domAttr.set(surface.rawNode, "overflow", "hidden");
+    }
+
+    private _initCluster() {
+        if (!this._activeCluster) return;
+        let surface = this._activeView.fclSurface;
+        if (!surface) return;
+
+        //we're going to replicate a cluster graphic in the svg element we added to the layer view. Just so it can be styled easily. Native WebGL for Scene Views would probably be better, but at least this way css can still be used to style/animate things.
+        this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
+        this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
+
+        //create the cluster shape
+        let clonedClusterElement = this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic, this._activeCluster.clusterGroup);
+        this._addClassToElement(clonedClusterElement, "cluster");
+
+        //create the cluster text shape
+        let clonedTextElement = this._createClonedElementFromGraphic(this._activeCluster.textGraphic, this._activeCluster.clusterGroup);
+        this._addClassToElement(clonedTextElement, "cluster-text");
+        clonedTextElement.setAttribute("pointer-events", "none");
+
+        this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
+        this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
+       
+        //set the group class     
+        this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
+
+    }
+
+
+    private _initFlares() {
+        if (!this._activeCluster || !this.displayFlares) return;
+
+        let gridCluster = this._activeCluster.gridCluster;
+
+        //check if we need to create flares for the cluster
+        let singleFlares = (gridCluster.singles && gridCluster.singles.length > 0) && (gridCluster.clusterCount <= this.maxSingleFlareCount);
+        let subTypeFlares = !singleFlares && (gridCluster.subTypeCounts && gridCluster.subTypeCounts.length > 0);
+
+        if (!singleFlares && !subTypeFlares) {
+            return; //no flares required
+        }
+
+        let flares: Flare[] = [];
+        if (singleFlares) {
+            for (var i = 0, len = gridCluster.singles.length; i < len; i++) {
+                let f = new Flare();
+                f.tooltipText = gridCluster.singles[i][this.singleFlareTooltipProperty];
+                f.singleData = gridCluster.singles[i];
+                f.flareText = "";
+                flares.push(f);
+            }
+        }
+        else if (subTypeFlares) {
+
+            //sort sub types by highest count first
+            var subTypes = gridCluster.subTypeCounts.sort(function (a, b) {
+                return b.count - a.count;
+            });
+
+            for (var i = 0, len = subTypes.length; i < len; i++) {
+                let f = new Flare();
+                f.tooltipText = `${subTypes[i].name} (${subTypes[i].count})`;
+                f.flareText = subTypes[i].count;
+                flares.push(f);
+            }
+        }
+
+        //if there are more flare objects to create than the maxFlareCount and this is a one of those - create a summary flare that contains '...' as the text and make this one part of it 
+        let willContainSummaryFlare = flares.length > this.maxFlareCount;
+        let flareCount = willContainSummaryFlare ? this.maxFlareCount : flares.length;
+
+        //if there's an even amount of flares, position the first flare to the left, minus 180 from degree to do this.
+        //for an add amount position the first flare on top, -90 to do this. Looks more symmetrical this way.
+        let degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
+        let viewRotation = this._is2d ? this._activeView.rotation : 0;
+
+        let clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
+        let clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
+        for (let i = 0; i < flareCount; i++) {
+
+            //let flarePoint = this._getFlarePoint(clusterScreenPoint, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
+
+            let flare = flares[i];
+
+            //set some attribute data
+            let flareAttributes = {
+                isFlare: true,
+                isSummaryFlare: false,
+                tooltipText: "",
+                flareTextGraphic: undefined,
+                clusterGraphicId: this._activeCluster.clusterId,
+                clusterCount: gridCluster.clusterCount
+            };
+
+            let flareTextAttributes = {};
+
+            //Do a couple of things differently if this is a summary flare or not
+            let isSummaryFlare = willContainSummaryFlare && i >= this.maxFlareCount - 1;
+            if (isSummaryFlare) {               
+                flare.isSummary = true;
+                flareAttributes.isSummaryFlare = true;
+                let tooltipText = "";
+                //multiline tooltip for summary flares, ie: greater than this.maxFlareCount flares per cluster
+                for (let j = this.maxFlareCount - 1, jlen = flares.length; j < jlen; j++) {
+                    tooltipText += j > (this.maxFlareCount - 1) ? "\n" : "";
+                    tooltipText += flares[j].tooltipText;
+                }
+                flare.tooltipText = tooltipText;
+            }
+           
+            flareAttributes.tooltipText = flare.tooltipText;
+           
+            //create a graphic for the flare and for the flare text
+            flare.graphic = new Graphic({
+                attributes: flareAttributes,
+                geometry: this._activeCluster.clusterGraphic.geometry,
+                popupTemplate: null
+            });
+
+            flare.graphic.symbol = this._getFlareSymbol(flare.graphic);
+            if (this._is2d && this._activeView.rotation) {
+                flare.graphic.symbol["angle"] = 360 - this._activeView.rotation;
+            }
+            else {
+                flare.graphic.symbol["angle"] = 0;
+            }
+
+
+            if (flare.flareText) {
+                let textSymbol = this.flareTextSymbol.clone();
+                textSymbol.text = !isSummaryFlare ? flare.flareText.toString() : "...";
+
+                if (this._is2d && this._activeView.rotation) {
+                    textSymbol.angle = 360 - this._activeView.rotation;
+                }
+
+                flare.textGraphic = new Graphic({
+                    attributes: {
+                        isText: true,
+                        clusterGraphicId: this._activeCluster.clusterId
+                    },
+                    symbol: textSymbol,
+                    geometry: this._activeCluster.clusterGraphic.geometry
+                });
+            }
+        }
+
+        //flares have been created so add them to the dom
+        for (let i = 0, len = flares.length; i < len; i++) {
+            let f = flares[i];
+            if (!f.graphic) continue;
+
+            //create a group to hold flare object and text if needed.
+            f.flareGroup = this._activeCluster.clusterGroup.createGroup();
+            let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
+
+            this._addClassToElement(f.flareGroup.rawNode, "flare-group");
+            let flareElement = this._createClonedElementFromGraphic(f.graphic, f.flareGroup);
+            f.flareGroup.rawNode.appendChild(flareElement);
+            if (f.textGraphic) {
+                let flareTextElement = this._createClonedElementFromGraphic(f.textGraphic, f.flareGroup);
+                flareTextElement.setAttribute("pointer-events", "none");
+                f.flareGroup.rawNode.appendChild(flareTextElement);
+            }
+
+            this._addClassToElement(f.flareGroup.rawNode, "activated", 10);
+
+            //assign some event handlers for the tooltips
+            f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", () => this._createTooltip(f));
+            f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", () => this._destroyTooltip());
+             
+        }
+
+    }
+
+    private _setFlarePosition(flareGroup: any, clusterSymbolSize: number, flareCount: number, flareIndex: number, degreeVariance: number, viewRotation: number) {
+
+        //get the position of the flare to be placed around the container circle.
+        let degree = parseInt(((360 / flareCount) * flareIndex).toFixed());
+        degree = degree + degreeVariance;
+
+        //take into account any rotation on the view
+        if (viewRotation !== 0) {
+            degree -= viewRotation;
+        }
+
+        var radian = degree * (Math.PI / 180);
+        let buffer = this.flareBufferPixels;
+
+        //position the flare group around the cluster
+        let position = {
+            x: (buffer + clusterSymbolSize) * Math.cos(radian),
+            y: (buffer + clusterSymbolSize) * Math.sin(radian)
+        }
+
+        //set the position by adding a transform
+        flareGroup.setTransform({ dx: position.x, dy: position.y });
+        return position;
+    }
+
+    private _getFlareSymbol(flareGraphic: Graphic): SimpleMarkerSymbol {
+        return !this.flareRenderer ? this.flareSymbol : this.flareRenderer.getClassBreakInfo(flareGraphic).symbol;
+    }
+
+    private _createTooltip(flare: Flare) {
+
+        let flareGroup = flare.flareGroup;
+        this._destroyTooltip();
+
+        let tooltipLength = query(".tooltip-text", flareGroup.rawNode).length;
+        if (tooltipLength > 0) {
+            return;
+        }
+
+        //get the text from the data-tooltip attribute of the shape object
+        let text = flare.tooltipText;
+        if (!text) {
+            console.log("no tooltip text for flare.");
+            return;
+        }
+
+        //split on \n character that should be in tooltip to signify multiple lines
+        let lines = text.split("\n");
+
+        //create a group to hold the tooltip elements
+        let tooltipGroup = flareGroup.createGroup();
+
+        //get the flare symbol, we'll use this to style the tooltip box
+        let flareSymbol = this._getFlareSymbol(flare.graphic);
+
+        //align on top for normal flare, align on bottom for summary flares.
+        let height = flareSymbol.size;
+
+        let xPos = 1;
+        let yPos = !flare.isSummary ? ((height) * -1) : height + 5;
+
+        tooltipGroup.rawNode.setAttribute("class", "tooltip-text");
+        let textShapes = [];
+        for (let i = 0, len = lines.length; i < len; i++) {
+
+            let textShape = tooltipGroup.createText({ x: xPos, y: yPos + (i * 10), text: lines[i], align: 'middle' })
+                .setFill(this.flareTextSymbol.color)
+                .setFont({ size: 10, family: this.flareTextSymbol.font.get("family"), weight: this.flareTextSymbol.font.get("weight") });
+
+            textShapes.push(textShape);
+            textShape.rawNode.setAttribute("pointer-events", "none");
+        }
+
+        let rectPadding = 2;
+        let textBox = tooltipGroup.getBoundingBox();
+
+        let rectShape = tooltipGroup.createRect({ x: textBox.x - rectPadding, y: textBox.y - rectPadding, width: textBox.width + (rectPadding * 2), height: textBox.height + (rectPadding * 2), r: 0 })
+            .setFill(flareSymbol.color);
+
+        if (flareSymbol.outline) {
+            rectShape.setStroke({ color: flareSymbol.outline.color, width: 0.5 });
+        }
+
+        rectShape.rawNode.setAttribute("pointer-events", "none");
+
+        flareGroup.moveToFront();
+        for (let i = 0, len = textShapes.length; i < len; i++) {
+            textShapes[i].moveToFront();
+        }
+        
+    }
+
+    private _destroyTooltip() {
+        query(".tooltip-text", this._activeView.fclSurface.rawNode).forEach(domConstruct.destroy);
+    }
+
+
+    //#region helper functions
+
+    private _createClonedElementFromGraphic(graphic: Graphic, surface: any): HTMLElement {
+
+        //fake out a GFXObject so we can generate an svg shape that the passed in graphics shape
+        let g = new GFXObject();
+        g.graphic = graphic;
+        g.renderingInfo = { symbol: graphic.symbol };
+
+        //set up parameters for the call to render
+        //set the transform of the projector to 0's as we're just placing the generated cluster shape at exactly 0,0.
+        let projector = new Projector();
+        projector._transform = [0, 0, 0, 0, 0, 0];
+        projector._resolution = 0;
+
+        let state = undefined;
+        if (this._is2d) {
+            state = this._activeView.state;
+        }
+        else {
+            //fake out a state object for 3d views.
+            state = {
+                clippedExtent: this._activeView.extent,
+                rotation: 0,
+                spatialReference: this._activeView.spatialReference,
+                worldScreenWidth: 1
+            };
+        }
+
+        let par = {
+            surface: surface,
+            state: state,
+            projector: projector
+        };
+        g.render(par);
+        return g._shape.rawNode;
+    }
+
+
+    private _extent(): Extent {
+        return this._activeView ? this._activeView.extent : undefined;
+    }
+
+    private _scale(): number {
+        return this._activeView ? this._activeView.scale : undefined;
+    }
+
+    //IE / Edge don't have the classList property on svg elements, so we can't use that add / remove classes - probably why dojo domClass doesn't work either.
+    //so the following two functions are dodgy string hacks to add / remove classes. Uses a timeout so you can make css transitions work if desired.
+    private _addClassToElement(element: HTMLElement, className: string, timeoutMs?: number, callback?: Function) {
+
+        let addClass: Function = (_element, _className) => {
+            let currentClass = _element.getAttribute("class");
+            if (!currentClass) currentClass = "";
+            if (currentClass.indexOf(" " + _className) !== -1) return;
+            let newClass = (currentClass + " " + _className).trim();
+            _element.setAttribute("class", newClass);
+        };
+
+        if (timeoutMs) {
+            setTimeout(() => {
+                addClass(element, className);
+                if (callback) {
+                    callback();
+                }
+            }, timeoutMs);
+        }
+        else {
+            addClass(element, className);
+        }
+    }
+
+
+    private _removeClassFromElement(element: HTMLElement, className: string, timeoutMs?: number, callback?: Function) {
+
+        let removeClass: Function = (_element, _className) => {
+            let currentClass = _element.getAttribute("class");
+            if (!currentClass) return;
+            if (currentClass.indexOf(" " + _className) === -1) return;
+            _element.setAttribute("class", currentClass.replace(" " + _className, ""));
+        };
+
+        if (timeoutMs) {
+            setTimeout(() => {
+                removeClass(element, className);
+                if (callback) {
+                    callback();
+                }
+            }, timeoutMs);
+        }
+        else {
+            removeClass(element, className);
+        }
+
+    }
+
+    private _getMousePos(evt) {
+        //container on the view is actually a html element at this point, not a string as the typings suggest.
+        let container: any = this._activeView.container;
+        let rect = container.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+        };
+    }
+
+
+    /**
+     * Setting visible to false on a graphic doesn't work in 4.2 for some reason. Removing the graphic to hide it instead. I think visible property should probably work though.
+     * @param graphic
+     */
+    private _hideGraphic(graphic: Graphic | Graphic[]) {
+        if (!graphic) return;
+        if (graphic.hasOwnProperty("length")) {
+            this.removeMany(<Graphic[]>graphic);
+        }
+        else {
+            this.remove(<Graphic>graphic);
+        }
+    }
+
+    private _showGraphic(graphic: Graphic | Graphic[]) {
+        if (!graphic) return;
+        if (graphic.hasOwnProperty("length")) {
+            this.addMany(<Graphic[]>graphic);
+        }
+        else {
+            this.add(<Graphic>graphic);
+        }
+    }
+
+    //#endregion
+
 }
 
+
+interface ActiveView extends __esri.View {
+    canvas: any;
+    state: any;
+    extent: Extent;
+    scale: number;
+    fclSurface: any;
+    fclPointerMove: IHandle;
+    fclResize: IHandle;
+    rotation: number;
+
+    toScreen(geometry: __esri.Geometry): ScreenPoint;
+    hitTest(scrrenPoint: ScreenPoint): any;
+}
 
 class GridCluster {
     extent: any;
@@ -440,13 +1190,41 @@ class GridCluster {
     y: number;
 }
 
+
+class Cluster {
+    clusterGraphic: Graphic;
+    textGraphic: Graphic;
+    areaGraphic: Graphic;
+    clusterId: number;
+    clusterGroup: any;
+    gridCluster: GridCluster;
+}
+
+class Flare { 
+    graphic: Graphic;
+    textGraphic: Graphic;
+    tooltipText: string;
+    flareText: string;
+    singleData: any[];
+    flareGroup: any;
+    isSummary: boolean;
+}
+
 export class PointFilter {
+    filterName: string;
     propertyName: string;
     propertyValues: any[];
 
-    constructor(name?: string, values?: any[]) {
-        this.propertyName = name;
+    //determines whether the filter includes or excludes the point depending on whether it contains the property value.
+    //false means the point will be excluded if the value does exist in the object, true means it will be excluded if it doesn't.
+    keepOnlyIfValueExists: boolean;
+
+    constructor(filterName: string, propertyName: string, values: any[], keepOnlyIfValueExists: boolean = false) {
+        this.filterName = filterName;
+        this.propertyName = propertyName;
         this.propertyValues = values;
+        this.keepOnlyIfValueExists = keepOnlyIfValueExists;
     }
 
 }
+
