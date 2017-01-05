@@ -129,9 +129,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
     private _queuedInitialDraw: boolean;
     private _data: any[];
     private _is2d: boolean;
-
-    private viewPopupMessageEnabled;
-
+     
     private _clusters: { [clusterId: number]: Cluster; } = {};
     private _activeCluster: Cluster;
 
@@ -226,8 +224,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         //add a stationary watch on the view to do some stuff.
         watchUtils.pausable(evt.layerView.view, "stationary", (isStationary, b, c, view) => this._viewStationary(isStationary, b, c, view));
 
-        this.viewPopupMessageEnabled = evt.layerView.view.popup.messageEnabled;
-
         if (this._viewLoadCount === 0) {
             this._activeView = evt.layerView.view;
 
@@ -248,8 +244,12 @@ export class FlareClusterLayer extends baseGraphicsLayer {
 
     private _addViewEvents(view?: ActiveView) {
         let v = view ? view : this._activeView;
-        if (!v.fclPointerMove) {
-            v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
+        if (!v.fclPointerMove) { 
+            let container: any = view.container;
+
+            //using the built in pointermove event of a view doens't work for touch. Dojo's mousemove registers touches as well.
+            //v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
+            v.fclPointerMove = on(container, "mousemove", (evt) => this._viewPointerMove(evt));
         }
     }
      
@@ -646,15 +646,17 @@ export class FlareClusterLayer extends baseGraphicsLayer {
     }
 
     private _viewPointerMove(evt) {
-        
-        let sp = new ScreenPoint({ x: evt.x, y: evt.y });
+
+        let mousePos = this._getMousePos(evt);
+
+        let sp = new ScreenPoint({ x: mousePos.x, y: mousePos.y });
 
         //if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
         //TODO: would probably be better to check if the point is in the actual circle of the cluster group and it's flares instead of using the rectangle bounding box.
         if (this._activeCluster) {
             let bbox = this._activeCluster.clusterGroup.rawNode.getBoundingClientRect();
             if (bbox) {
-                if (evt.x >= bbox.left && evt.x <= bbox.right && evt.y >= bbox.top && evt.y <= bbox.bottom) return;
+                if (mousePos.x >= bbox.left && mousePos.x <= bbox.right && mousePos.y >= bbox.top && mousePos.y <= bbox.bottom) return;
             }
         }
 
@@ -679,7 +681,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
                 }
             }
         });
-    }
+    }    
 
     private _activateCluster(cluster: Cluster) {
        
@@ -1152,8 +1154,7 @@ interface ActiveView extends __esri.View {
     extent: Extent;
     scale: number;
     fclSurface: any;
-    fclPointerMove: IHandle;
-    fclResize: IHandle;
+    fclPointerMove: IHandle;    
     rotation: number;
 
     toScreen(geometry: __esri.Geometry): ScreenPoint;
