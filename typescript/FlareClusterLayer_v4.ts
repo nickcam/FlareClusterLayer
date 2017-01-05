@@ -228,9 +228,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
 
         this.viewPopupMessageEnabled = evt.layerView.view.popup.messageEnabled;
 
-        //watch this property so we can not display popups for graphics we don't want to.
-        watchUtils.watch(evt.layerView.view.popup.viewModel, "selectedFeature", (selectedFeature, b, c, viewModel) => this._viewPopupSelectedFeatureChange(selectedFeature, b, c, viewModel));
-
         if (this._viewLoadCount === 0) {
             this._activeView = evt.layerView.view;
 
@@ -248,23 +245,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
 
     }
 
-
-    private _viewPopupSelectedFeatureChange(selectedFeature, b, c, viewModel) {
-        //There has got to be an better way to not show popups for certain graphics!
-
-        if (!selectedFeature) {
-            //reset the popup message for the view so this layer doesn't affect other layers.
-            viewModel.view.popup.messageEnabled = this.viewPopupMessageEnabled;
-            return;
-        }
-
-        //if this is a cluster type graphic then hide the popup
-        if (selectedFeature.attributes.isFlare || selectedFeature.attributes.isCluster || selectedFeature.attributes.isClusterArea) {
-            viewModel.features = [];
-            viewModel.view.popup.messageEnabled = false;
-            viewModel.view.popup.close();
-        }
-    }
 
     private _addViewEvents(view?: ActiveView) {
         let v = view ? view : this._activeView;
