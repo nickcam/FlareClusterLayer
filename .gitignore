@@ -165,3 +165,4 @@ typings/globals/
 .vscode/
 
 .typingsrc
+/.vs/config/applicationhost.config
