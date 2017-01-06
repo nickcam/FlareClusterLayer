@@ -81,9 +81,6 @@ interface BaseGraphicsLayerConstructor { new (options?: __esri.GraphicsLayerProp
 let baseGraphicsLayer: BaseGraphicsLayerConstructor = accessorSupportDecorators.declared(<any>GraphicsLayer);
 
 
-//TODO: 
-// - why is chrome on my pc fucked.
-
 @accessorSupportDecorators.subclass("FlareClusterLayer")
 export class FlareClusterLayer extends baseGraphicsLayer {
 
@@ -830,7 +827,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
                 clusterGraphicId: this._activeCluster.clusterId,
                 clusterCount: gridCluster.clusterCount
             };
-
+             
             let flareTextAttributes = {};
 
             //Do a couple of things differently if this is a summary flare or not
