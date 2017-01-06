@@ -4,28 +4,7 @@ Typings for esri loaded modules that aren't exposed in the offical typings file 
 */
 
 declare namespace __esriExtend {
-    export interface VectorGroup {
-        transform: any;
-        surface: any;
-        vectors: any;
-        view: any;
-
-        _viewExtent: __esri.Extent;
-        _viewGeoExtent: __esri.Extent;
-
-        _updateTransform(): void;
-        drawVector(c: any, a: any): void;
-        removeVector(a: any): void;
-
-        _drawPoint(surface: any, webGeometry: any, symbol: any, vector: any, e: any): any;
-    }
-
-    interface VectorGroupConstructor {
-        new (properties?: any): VectorGroup;
-    }
-
-    export const VectorGroup: VectorGroupConstructor;
-
+   
     export const dojoxGfx: any;
 
     interface PropertyMetadata<T> {
@@ -38,11 +17,20 @@ declare namespace __esriExtend {
         readOnly?: boolean;
         aliasOf?: string;
     }
+
+    export const GFXObject: any;
+    export const Projector: any;
 }
 
-declare module "esri/views/2d/VectorGroup" {
-    import VectorGroup = __esriExtend.VectorGroup;
-    export = VectorGroup;
+
+declare module "esri/views/2d/engine/graphics/GFXObject" {
+    import GFXObject = __esriExtend.GFXObject;
+    export = GFXObject;
+}
+
+declare module "esri/views/2d/engine/graphics/Projector" {
+    import Projector = __esriExtend.Projector;
+    export = Projector;
 }
 
 declare module "dojox/gfx" {
@@ -57,8 +45,4 @@ declare module "esri/core/accessorSupport/decorators" {
     export function declared<T>(base: T, ...rest: any[]): T;
     export function property<T>(metadata?: __esriExtend.PropertyMetadata<T>): any;
     export function subclass(declaredClass?: string): any;
-}
-
-declare module "esri/views/2d/viewpointUtils" {
-    export function getExtent(a: any, b: any, c: any): __esri.Extent;
 }
