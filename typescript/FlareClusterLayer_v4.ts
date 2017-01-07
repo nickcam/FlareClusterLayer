@@ -46,7 +46,7 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
     singlePopupTemplate?: PopupTemplate;
     spatialReference?: SpatialReference;
-
+     
     clusterRatio?: number;
     clusterToScale?: number;
     clusterMinCount?: number;
@@ -725,7 +725,23 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         let surface = this._activeView.fclSurface;
         if (!surface) return;
 
-        let sp: ScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
+        let spp: ScreenPoint;
+        let sp: ScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry, spp);
+
+        //toScreen() returns the wrong value for x if a 2d map has been wrapped around the globe. Need to check and cater for this. I think this a bug in the api.
+        if (this._is2d) {
+            var wsw = this._activeView.state.worldScreenWidth;
+            let ratio = parseInt((sp.x / wsw).toFixed(0)); //get a ratio to determine how many times the map has been wrapped around.
+            if (sp.x < 0) {                
+                //x is less than 0, WTF. Need to adjust by the world screen width.
+                sp.x += wsw * (ratio * -1);
+            }
+            else if (sp.x > wsw) {                
+                //x is too big, WTF as well, cater for it.
+                sp.x -= wsw * ratio;
+            }            
+        }
+
         domStyle.set(surface.rawNode, { zIndex: 11, overflow: "visible", width: "1px", height: "1px", left: sp.x + "px", top: sp.y + "px" });
         domAttr.set(surface.rawNode, "overflow", "visible");
 
@@ -1150,7 +1166,7 @@ interface ActiveView extends __esri.View {
     fclPointerMove: IHandle;    
     rotation: number;
 
-    toScreen(geometry: __esri.Geometry): ScreenPoint;
+    toScreen(geometry: __esri.Geometry, sp?: ScreenPoint): ScreenPoint;
     hitTest(scrrenPoint: ScreenPoint): any;
 }
 
