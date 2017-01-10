@@ -19,14 +19,14 @@ Note: The latest version won't work with arcgis v4.x less than 4.2. There's a 4.
 
 - Configure the symbology to be whatever you want by using a renderer for the clusters and single symbols and an optional second renderer for the cluster boundaries.
 
-- Supports MapView (2d) and SceneView (3d) for api v4.1.
+- Supports MapView (2d) and SceneView (3d) for api v4.x.
 
 All of the options are explained in the constructor of the layer/s so just check out the code for a full explanation. 
 Demos are here:
 
 v3.x - http://flareclusterlayer.azurewebsites.net/index_v3.html
 
-v4.1 - http://flareclusterlayer.azurewebsites.net/index_v4.html 
+v4.x - http://flareclusterlayer.azurewebsites.net/index_v4.html 
 
 ## api v4.2 notes
 
