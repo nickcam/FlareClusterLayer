@@ -178,7 +178,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             color: new Color([0, 0, 0, 0.5]),
             outline: new SimpleLineSymbol({ color: new Color([255, 255, 255, 0.5]), width: 1 })
         });
-
+         
         this.textSymbol = options.textSymbol || new TextSymbol({
             color: new Color([255, 255, 255]),
             font: {
@@ -232,16 +232,31 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         }
         this._viewLoadCount++;
 
-        //wire up some view events
-        this._addViewEvents(evt.layerView.view);
+
+        if (evt.layerView.view.type === "2d") {
+            //for map views, wait for the layerview ot be attached, before adding events
+            watchUtils.whenTrueOnce(evt.layerView, "attached", () => this._addViewEvents(evt.layerView));
+        }
+        else {
+            //for scene views just add the events straight away
+            this._addViewEvents(evt.layerView);
+        }
 
     }
 
-
-    private _addViewEvents(view?: ActiveView) {
-        let v = view ? view : this._activeView;
+    private _addViewEvents(layerView: any) {
+        let v: ActiveView = layerView.view;
         if (!v.fclPointerMove) { 
-            let container: any = view.container;
+
+            let container: HTMLElement = undefined;
+            if (v.type === "2d") {
+                //for a map view get the container element of the layer view to add mousemove event to.
+                container = layerView.container.element;
+            }
+            else {
+                //for scene view get the canvas element under the view container to add mousemove to.
+                container = <HTMLElement>query("canvas", v.container)[0];
+            }
 
             //using the built in pointermove event of a view doens't work for touch. Dojo's mousemove registers touches as well.
             //v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
@@ -256,9 +271,6 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             if (this._data) {
                 this.draw();
             }
-
-            //reaasign events if needed
-            this._addViewEvents();
         }
 
         if (!isStationary && this._activeCluster) {
@@ -637,14 +649,13 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             domStyle.set(this._layerView2d.container.element, "z-index", "1");
             query(".esri-ui").forEach(function (node: HTMLElement, index) {
                 domStyle.set(node, "z-index", "2");
-            });
+            }); 
         }
     }
 
     private _viewPointerMove(evt) {
 
         let mousePos = this._getMousePos(evt);
-
         let sp = new ScreenPoint({ x: mousePos.x, y: mousePos.y });
 
         //if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
