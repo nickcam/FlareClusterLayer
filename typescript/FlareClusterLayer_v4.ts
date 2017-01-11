@@ -826,7 +826,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
                 let f = new Flare();
                 f.tooltipText = `${subTypes[i].name} (${subTypes[i].count})`;
                 f.flareText = subTypes[i].count;
-                flares.push(f);
+                flares.push(f); 
             }
         }
 

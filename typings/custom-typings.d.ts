@@ -7,17 +7,6 @@ declare namespace __esriExtend {
    
     export const dojoxGfx: any;
 
-    interface PropertyMetadata<T> {
-        get?: () => T;
-        set?: (value: T) => void;
-        cast?: (value: any) => T;
-        dependsOn?: string[];
-        value?: T;
-        type?: (new (...params: any[]) => T) | [new (...params: any[]) => T];
-        readOnly?: boolean;
-        aliasOf?: string;
-    }
-
     export const GFXObject: any;
     export const Projector: any;
 }
