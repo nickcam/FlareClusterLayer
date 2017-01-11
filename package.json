@@ -3,8 +3,9 @@
   "name": "FlareClusterLayer",
   "private": true,
   "scripts": {
+    "postinstall": "typings install",
     "typings": "typings"
-  },
+  }, 
   "devDependencies": {
     "dojo-typings": "^1.11.3",
     "gulp": "^3.9.1",

@@ -242,8 +242,8 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             this._addViewEvents(evt.layerView);
         }
 
-    }
-
+    } 
+     
     private _addViewEvents(layerView: any) {
         let v: ActiveView = layerView.view;
         if (!v.fclPointerMove) { 
@@ -840,7 +840,7 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         let viewRotation = this._is2d ? this._activeView.rotation : 0;
 
         let clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
-        let clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
+        let clusterSymbolSize = <number>this._activeCluster.clusterGraphic.symbol.get("size");
         for (let i = 0; i < flareCount; i++) {
 
             let flare = flares[i];
@@ -913,8 +913,9 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             let f = flares[i];
             if (!f.graphic) continue;
 
-            //create a group to hold flare object and text if needed.
+            //create a group to hold flare object and text if needed. 
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
+            
             let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
             
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");

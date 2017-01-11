@@ -38,11 +38,11 @@ declare module "dojox/gfx" {
     export = dojoxGfx;
 }
 
-declare module "esri/core/accessorSupport/decorators" {
-    export function cast(proto: Object, methodName: string, descriptor: PropertyDescriptor): any;
-    export function cast(ctor: Function): any;
-    export function cast(propertyName: string): any;
-    export function declared<T>(base: T, ...rest: any[]): T;
-    export function property<T>(metadata?: __esriExtend.PropertyMetadata<T>): any;
-    export function subclass(declaredClass?: string): any;
-}
+//declare module "esri/core/accessorSupport/decorators" {
+//    export function cast(proto: Object, methodName: string, descriptor: PropertyDescriptor): any;
+//    export function cast(ctor: Function): any;
+//    export function cast(propertyName: string): any;
+//    export function declared<T>(base: T, ...rest: any[]): T;
+//    export function property<T>(metadata?: __esriExtend.PropertyMetadata<T>): any;
+//    export function subclass(declaredClass?: string): any;
+//}
