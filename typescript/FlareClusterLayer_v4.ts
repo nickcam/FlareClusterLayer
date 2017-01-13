@@ -24,7 +24,7 @@ import * as externalRenderers from "esri/views/3d/externalRenderers";
 import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
 import * as Projector from "esri/views/2d/engine/graphics/Projector";
  
-import * as accessorSupportDecorators from "esri/core/accessorSupport/decorators";
+import * as asd from "esri/core/accessorSupport/decorators";
  
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
@@ -67,22 +67,17 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
     yPropertyName?: string;
     zPropertyName?: string;
 
+    refreshOnStationary?: boolean;
+
     filters?: PointFilter[];
 
     data?: any[];
 
 }
 
-
-//This is how you have to extend classes in arcgis api that are a subclass of Accessor.
-//Will likely change in future releases. See these links - https://github.com/Esri/jsapi-resources/issues/40 & https://github.com/ycabon/extend-accessor-example
-interface BaseGraphicsLayer extends GraphicsLayer { }
-interface BaseGraphicsLayerConstructor { new (options?: __esri.GraphicsLayerProperties): BaseGraphicsLayer; }
-let baseGraphicsLayer: BaseGraphicsLayerConstructor = accessorSupportDecorators.declared(<any>GraphicsLayer);
-
-
-@accessorSupportDecorators.subclass("FlareClusterLayer")
-export class FlareClusterLayer extends baseGraphicsLayer {
+//extend GraphicsLayer using 'accessorSupport/decorators '
+@asd.subclass("FlareClusterLayer")
+export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
     singleRenderer: any;
     singleSymbol: SimpleMarkerSymbol;
@@ -109,6 +104,8 @@ export class FlareClusterLayer extends baseGraphicsLayer {
     flareTextSymbol: TextSymbol;
     displaySubTypeFlares: boolean;
     subTypeFlareProperty: string;
+
+    refreshOnStationary: boolean;
 
     xPropertyName: string;
     yPropertyName: string;
@@ -172,6 +169,8 @@ export class FlareClusterLayer extends baseGraphicsLayer {
         this.singleSymbol = options.singleSymbol;
         this.flareRenderer = options.flareRenderer;
 
+        this.refreshOnStationary = options.refreshOnStationary === false ? false : true; //default to true
+
         //add some default symbols or use the options values.
         this.flareSymbol = options.flareSymbol || new SimpleMarkerSymbol({
             size: 14,
@@ -217,8 +216,10 @@ export class FlareClusterLayer extends baseGraphicsLayer {
             this._layerView3d = evt.layerView;
         }
 
-        //add a stationary watch on the view to do some stuff.
-        watchUtils.pausable(evt.layerView.view, "stationary", (isStationary, b, c, view) => this._viewStationary(isStationary, b, c, view));
+        //add a stationary watch on the view to refresh if specified in options.
+        if (this.refreshOnStationary) {
+            watchUtils.pausable(evt.layerView.view, "stationary", (isStationary, b, c, view) => this._viewStationary(isStationary, b, c, view));
+        }
 
         if (this._viewLoadCount === 0) {
             this._activeView = evt.layerView.view;
