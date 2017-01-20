@@ -5,21 +5,8 @@ var sourcemaps = require('gulp-sourcemaps');
 
 var tsProject = ts.createProject("tsconfig.json");
 
-//Task to copy dojo tpyings from node modules to typings folder. dojo typings don't work using typings tool - so we install them using npm then just copy them over from there.
-//manually copy teh reference to the dojo modules *.d.ts files in the typings index file.
-gulp.task('copy-dojo-typings', function () {
-    return gulp.src([
-      'node_modules/dojo-typings/dojo/**/*.ts',
-      'node_modules/dojo-typings/dojox/**/*.ts',
-      'node_modules/dojo-typings/dijit/**/*.ts',
-      'node_modules/dojo-typings/doh/**/*.ts',
-    ],
-    { base: './node_modules/dojo-typings/' }
-    ).pipe(gulp.dest('typings/globals/dojo'));
-});
-
+//typescript compile task
 gulp.task('typescript-compile', function () {
-    var tsProject = ts.createProject("tsconfig.json");
 
     var tsResult = tsProject.src()
        .pipe(sourcemaps.init())
@@ -37,4 +24,4 @@ gulp.task('watch', function () {
     return gulp.watch('typescript/**/*.ts', ['typescript-compile']); //watch typescript files to compile.
 });
 
-gulp.task('default', ["typescript-compile", "watch", "copy-dojo-typings"]);
+gulp.task('default', ["typescript-compile", "watch"]);

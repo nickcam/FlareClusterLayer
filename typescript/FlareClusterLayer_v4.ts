@@ -11,7 +11,7 @@ import * as watchUtils from 'esri/core/watchUtils';
 import * as View from 'esri/views/View';
 import * as webMercatorUtils from "esri/geometry/support/webMercatorUtils";
 import * as Graphic from "esri/Graphic";
-import * as Point from "esri/geometry/Point";
+import * as Point from "esri/geometry/Point"; 
 import * as ScreenPoint from "esri/geometry/ScreenPoint";
 import * as Multipoint from "esri/geometry/Multipoint";
 import * as Polygon from "esri/geometry/Polygon";
@@ -1172,17 +1172,13 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 }
 
 
-//interface ActiveView extends __esri.View {
+//interface ActiveView extends MapView and SceneView to add some properties {
 interface ActiveView extends MapView, SceneView {
     canvas: any;
     state: any;
-    //extent: Extent;
-    //scale: number;
     fclSurface: any;
     fclPointerMove: IHandle;
     fclPointerDown: IHandle;
-
-    //rotation: number;
 
     constraints: any;
     goTo: (target: any, options: __esri.MapViewGoToOptions) => IPromise<any>;
