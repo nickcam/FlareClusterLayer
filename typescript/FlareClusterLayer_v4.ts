@@ -1,6 +1,5 @@
 ﻿/// <reference path="../typings/index.d.ts" />
 
-
 import * as GraphicsLayer from "esri/layers/GraphicsLayer";
 import * as ClassBreaksRenderer from "esri/renderers/ClassBreaksRenderer";
 import * as PopupTemplate from "esri/PopupTemplate";
@@ -19,13 +18,14 @@ import * as Polygon from "esri/geometry/Polygon";
 import * as geometryEngine from 'esri/geometry/geometryEngine';
 import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
-import * as externalRenderers from "esri/views/3d/externalRenderers";
+import * as MapView from 'esri/views/MapView';
+import * as SceneView from 'esri/views/SceneView';
 
 import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
 import * as Projector from "esri/views/2d/engine/graphics/Projector";
  
 import * as asd from "esri/core/accessorSupport/decorators";
- 
+
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
 import * as domConstruct from 'dojo/dom-construct';
@@ -33,8 +33,8 @@ import * as query from 'dojo/query';
 import * as dom from 'dojo/dom';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
-
-
+import * as sniff from 'dojo/sniff';
+ 
 interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
     clusterRenderer: ClassBreaksRenderer;
@@ -46,7 +46,7 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
     singlePopupTemplate?: PopupTemplate;
     spatialReference?: SpatialReference;
-     
+
     clusterRatio?: number;
     clusterToScale?: number;
     clusterMinCount?: number;
@@ -75,7 +75,7 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
 }
 
-//extend GraphicsLayer using 'accessorSupport/decorators '
+//extend GraphicsLayer using 'accessorSupport/decorators'
 @asd.subclass("FlareClusterLayer")
 export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
@@ -122,7 +122,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     private _queuedInitialDraw: boolean;
     private _data: any[];
     private _is2d: boolean;
-     
+
     private _clusters: { [clusterId: number]: Cluster; } = {};
     private _activeCluster: Cluster;
 
@@ -139,7 +139,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             console.error("Missing required parameters to flare cluster layer constructor.");
             return;
         }
-
+        
         this.singlePopupTemplate = options.singlePopupTemplate;
 
         //set up the clustering properties
@@ -177,7 +177,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             color: new Color([0, 0, 0, 0.5]),
             outline: new SimpleLineSymbol({ color: new Color([255, 255, 255, 0.5]), width: 1 })
         });
-         
+
         this.textSymbol = options.textSymbol || new TextSymbol({
             color: new Color([255, 255, 255]),
             font: {
@@ -243,11 +243,11 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             this._addViewEvents(evt.layerView);
         }
 
-    } 
-     
+    }
+
     private _addViewEvents(layerView: any) {
         let v: ActiveView = layerView.view;
-        if (!v.fclPointerMove) { 
+        if (!v.fclPointerMove) {
 
             let container: HTMLElement = undefined;
             if (v.type === "2d") {
@@ -259,15 +259,15 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 container = <HTMLElement>query("canvas", v.container)[0];
             }
 
-            //using the built in pointermove event of a view doens't work for touch. Dojo's mousemove registers touches as well.
-            //v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
-            v.fclPointerMove = on(container, "mousemove", (evt) => this._viewPointerMove(evt));
+            //Add pointer move and pointer down. Pointer down to handle touch devices.
+            v.fclPointerMove = v.on("pointer-move", (evt) => this._viewPointerMove(evt));
+            v.fclPointerDown = v.on("pointer-down", (evt) => this._viewPointerMove(evt));
         }
     }
-     
+
 
     private _viewStationary(isStationary, b, c, view) {
-        
+
         if (isStationary) {
             if (this._data) {
                 this.draw();
@@ -620,7 +620,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             }
         }
     }
-
+     
     /**
      * Create an svg surface on the view if it doesn't already exist
      * @param view
@@ -644,9 +644,11 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domAttr.set(surface.rawNode, "class", "fcl-surface");
         this._activeView.fclSurface = surface;
 
-        //This is a hack for IE. hitTest on the view doens't pick up any results unless the z-index of the layerView container is at least 1. So set it to 1, but also have to set the .esri-ui
+        //This is a hack for IE & Edge. hitTest on the view doesn't pick up any results unless the z-index of the layerView container is at least 1. So set it to 1, but also have to set the .esri-ui
         //container to 2 otherwise it can't be clicked on as it's covered by the layer view container. meh!
-        if (this._is2d) {
+        //using dojo/sniff to target IE browsers.
+        if (this._is2d && (sniff("trident") || sniff("ie") || sniff("edge"))) {
+            alert('fixer');
             domStyle.set(this._layerView2d.container.element, "z-index", "1");
             query(".esri-ui").forEach(function (node: HTMLElement, index) {
                 domStyle.set(node, "z-index", "2");
@@ -657,8 +659,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     private _viewPointerMove(evt) {
 
         let mousePos = this._getMousePos(evt);
-        let sp = new ScreenPoint({ x: mousePos.x, y: mousePos.y });
-
+       
         //if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
         //TODO: would probably be better to check if the point is in the actual circle of the cluster group and it's flares instead of using the rectangle bounding box.
         if (this._activeCluster) {
@@ -668,15 +669,16 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             }
         }
 
-        this._activeView.hitTest(sp).then((response) => {
-            //console.log(response);
+        let v: MapView = this._activeView;
+
+        this._activeView.hitTest(mousePos).then((response) => {
+
             let graphics = response.results;
             if (graphics.length === 0) {
                 this._deactivateCluster();
                 return;
             }
 
-            
             for (let i = 0, len = graphics.length; i < len; i++) {
                 let g = graphics[i].graphic;
                 if (g && (g.attributes.clusterId != null && !g.attributes.isClusterArea)) {
@@ -689,10 +691,10 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 }
             }
         });
-    }    
+    }
 
     private _activateCluster(cluster: Cluster) {
-       
+
         if (this._activeCluster === cluster) {
             return; //already active
         }
@@ -713,7 +715,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     }
 
     private _deactivateCluster() {
-  
+
         if (!this._activeCluster) return;
 
         this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
@@ -727,7 +729,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         this._activeCluster = undefined;
 
         //console.log("DE-activate cluster");
-       
+
     }
 
 
@@ -738,20 +740,20 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         if (!surface) return;
 
         let spp: ScreenPoint;
-        let sp: ScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry, spp);
+        let sp: ScreenPoint = this._activeView.toScreen(<Point>this._activeCluster.clusterGraphic.geometry, spp);
 
         //toScreen() returns the wrong value for x if a 2d map has been wrapped around the globe. Need to check and cater for this. I think this a bug in the api.
         if (this._is2d) {
             var wsw = this._activeView.state.worldScreenWidth;
             let ratio = parseInt((sp.x / wsw).toFixed(0)); //get a ratio to determine how many times the map has been wrapped around.
-            if (sp.x < 0) {                
+            if (sp.x < 0) {
                 //x is less than 0, WTF. Need to adjust by the world screen width.
                 sp.x += wsw * (ratio * -1);
             }
-            else if (sp.x > wsw) {                
+            else if (sp.x > wsw) {
                 //x is too big, WTF as well, cater for it.
                 sp.x -= wsw * ratio;
-            }            
+            }
         }
 
         domStyle.set(surface.rawNode, { zIndex: 11, overflow: "visible", width: "1px", height: "1px", left: sp.x + "px", top: sp.y + "px" });
@@ -786,7 +788,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
         this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
         this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
-       
+
         //set the group class     
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
 
@@ -827,7 +829,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 let f = new Flare();
                 f.tooltipText = `${subTypes[i].name} (${subTypes[i].count})`;
                 f.flareText = subTypes[i].count;
-                flares.push(f); 
+                flares.push(f);
             }
         }
 
@@ -840,7 +842,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         let degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
         let viewRotation = this._is2d ? this._activeView.rotation : 0;
 
-        let clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
+        let clusterScreenPoint = this._activeView.toScreen(<Point>this._activeCluster.clusterGraphic.geometry);
         let clusterSymbolSize = <number>this._activeCluster.clusterGraphic.symbol.get("size");
         for (let i = 0; i < flareCount; i++) {
 
@@ -855,12 +857,12 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 clusterGraphicId: this._activeCluster.clusterId,
                 clusterCount: gridCluster.clusterCount
             };
-             
+
             let flareTextAttributes = {};
 
             //Do a couple of things differently if this is a summary flare or not
             let isSummaryFlare = willContainSummaryFlare && i >= this.maxFlareCount - 1;
-            if (isSummaryFlare) {               
+            if (isSummaryFlare) {
                 flare.isSummary = true;
                 flareAttributes.isSummaryFlare = true;
                 let tooltipText = "";
@@ -871,9 +873,9 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 }
                 flare.tooltipText = tooltipText;
             }
-           
+
             flareAttributes.tooltipText = flare.tooltipText;
-           
+
             //create a graphic for the flare and for the flare text
             flare.graphic = new Graphic({
                 attributes: flareAttributes,
@@ -916,9 +918,9 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
             //create a group to hold flare object and text if needed. 
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
-            
+
             let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
-            
+
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");
             let flareElement = this._createClonedElementFromGraphic(f.graphic, f.flareGroup);
             f.flareGroup.rawNode.appendChild(flareElement);
@@ -933,7 +935,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             //assign some event handlers for the tooltips
             f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", () => this._createTooltip(f));
             f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", () => this._destroyTooltip());
-             
+
         }
 
     }
@@ -1025,8 +1027,8 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         flareGroup.moveToFront();
         for (let i = 0, len = textShapes.length; i < len; i++) {
             textShapes[i].moveToFront();
-        }
-        
+        }        
+
     }
 
     private _destroyTooltip() {
@@ -1135,8 +1137,8 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         let container: any = this._activeView.container;
         let rect = container.getBoundingClientRect();
         return {
-            x: evt.clientX - rect.left,
-            y: evt.clientY - rect.top
+            x: evt.x - rect.left,
+            y: evt.y - rect.top
         };
     }
 
@@ -1170,17 +1172,20 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 }
 
 
-interface ActiveView extends __esri.View {
+//interface ActiveView extends __esri.View {
+interface ActiveView extends MapView, SceneView {
     canvas: any;
     state: any;
-    extent: Extent;
-    scale: number;
+    //extent: Extent;
+    //scale: number;
     fclSurface: any;
-    fclPointerMove: IHandle;    
-    rotation: number;
+    fclPointerMove: IHandle;
+    fclPointerDown: IHandle;
 
-    toScreen(geometry: __esri.Geometry, sp?: ScreenPoint): ScreenPoint;
-    hitTest(scrrenPoint: ScreenPoint): any;
+    //rotation: number;
+
+    constraints: any;
+    goTo: (target: any, options: __esri.MapViewGoToOptions) => IPromise<any>;
 }
 
 class GridCluster {
@@ -1203,7 +1208,7 @@ class Cluster {
     gridCluster: GridCluster;
 }
 
-class Flare { 
+class Flare {
     graphic: Graphic;
     textGraphic: Graphic;
     tooltipText: string;

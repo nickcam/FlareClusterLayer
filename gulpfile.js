@@ -19,9 +19,11 @@ gulp.task('copy-dojo-typings', function () {
 });
 
 gulp.task('typescript-compile', function () {
+    var tsProject = ts.createProject("tsconfig.json");
+
     var tsResult = tsProject.src()
-        .pipe(sourcemaps.init())
-        .pipe(ts(tsProject));
+       .pipe(sourcemaps.init())
+       .pipe(tsProject());
 
     return tsResult.js
         .pipe(sourcemaps.write())

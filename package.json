@@ -5,12 +5,13 @@
   "scripts": {
     "postinstall": "typings install",
     "typings": "typings"
-  }, 
+  },
   "devDependencies": {
     "dojo-typings": "^1.11.3",
     "gulp": "^3.9.1",
-    "gulp-typescript": "^2.13.6",
+    "gulp-typescript": "^3.1.4",
+    "typescript": "2.1.5",
     "typings": "^1.3.1",
-    "gulp-sourcemaps": "^1.9.1"  
+    "gulp-sourcemaps": "^1.9.1"
   }
 }
