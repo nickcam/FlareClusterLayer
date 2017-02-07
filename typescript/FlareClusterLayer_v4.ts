@@ -648,7 +648,6 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         //container to 2 otherwise it can't be clicked on as it's covered by the layer view container. meh!
         //using dojo/sniff to target IE browsers.
         if (this._is2d && (sniff("trident") || sniff("ie") || sniff("edge"))) {
-            alert('fixer');
             domStyle.set(this._layerView2d.container.element, "z-index", "1");
             query(".esri-ui").forEach(function (node: HTMLElement, index) {
                 domStyle.set(node, "z-index", "2");
