@@ -16,7 +16,7 @@ gulp.task('typescript-compile', function () {
         .pipe(sourcemaps.write())
         .pipe(gulp.dest(tsProject.options.outDir));
 
-
+     
 });
 
 //watch for changes on ts files and compile and copy when saved
