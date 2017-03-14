@@ -30,14 +30,14 @@ v4.x - http://flareclusterlayer.azurewebsites.net/index_v4.html
 
 ## api v4.2 notes
 
-I used typescript to build the v4 version (because typescript rocks), so you could either use the typecsript version and compile it to js in your own project or just use the compiled version in the fcl folder, same way the demo does.
+I used typescript to build the v4 version (because typescript rocks), so you could either use the typescript version and compile it to js in your own project or just use the compiled version in the fcl folder, same way the demo does.
 
 Moved all of the animations out of the code and added css classes to elements instead. Animations can be performed using css instead of in code. This allows for much more flexibility. Example css that replicates/extends the v3.x animations are in the index_v4.html example.
 
-If you want to run the repo locally, do an 
+If you want to run the repo locally, just do an 
 npm install
 
-Also run the default gulp task (or at least the copy-dojo-typings task) to make sure the dojo typings get copied into the typings folder; dojo typings have an npm package of their own but can't be included using typings tool.
+There's no @types package for dojo v11.1 yet, but there is an npm package 'dojo-typings'. So had to just include a reference to the dojo types in a custom index.d.ts file, that also includes some custom typings as well.
 
 If you plan to include the .ts file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
 For example, to use it in an angular 2 project you would change the imports to be -
