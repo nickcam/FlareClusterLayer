@@ -3,13 +3,13 @@
   "name": "FlareClusterLayer",
   "private": true,
   "scripts": {
-  },
+  }, 
   "devDependencies": {
     "dojo-typings": "^1.11.3",
-    "gulp": "^3.9.1",
-    "gulp-typescript": "^3.1.4",
+    "gulp": "3.9.1",
+    "gulp-typescript": "^3.1.4", 
     "typescript": "2.1.5",
-    "gulp-sourcemaps": "^1.9.1",
+    "gulp-sourcemaps": "^1.9.1", 
     "@types/arcgis-js-api": "4.3.0" 
   }
 }

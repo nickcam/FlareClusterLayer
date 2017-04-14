@@ -9,6 +9,8 @@
 
     <title>Flare Cluster Layer Example</title>
 
+    <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
+
     <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
 
     <style>
@@ -17,7 +19,7 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            font-family: Arial, Calibri;
+            font-family: abel, Arial, Calibri;
             overflow: hidden;
         }
 
@@ -34,108 +36,114 @@
                 z-index: -10;
             }
 
+
+ /* top menu */
+    #top-menu {
+        -webkit-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+        -moz-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+        box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        padding: 0 10px;
+        height: 45px;
+        width: auto;
+        background: rgba(46, 68, 94, 0.8); 
+        z-index: 2001;
+        color: #FFF;
+    }
+
        
-        #header {
-            position: absolute;
-            z-index: 1000;
-            top: 0px;
-            left: 0px;
-            height: 15px;
-            width: 100%;
-            font-weight: bold;
-            padding: 15px 10px;
-        }
 
-          
-        #header a {
-            margin-left: 20px;
-            color: #FFF;
-        }
-
-        #header, #menu {
-            position: absolute;
-            z-index: 1000;
-            background-color: rgba(46, 68, 94, 0.8);
-            color: #FFF;
-            font-size: 0.8em;
-        }
-
-        #menu {
-            top: 45px;
-            left: 0;
-            bottom: 0;
-            width: 165px;
-            padding: 5px 10px;
-            border-top: 1px Solid #FFF;
-            transition: left ease 0.5s;
-        }
-
-            #menu > div {
-                margin-top: 10px;
-            }
-
-            #menu select {
-                height: 25px;
-                border-radius: 5px;
-                margin-right: 20px;
-            }
-
-        #menu.closed {
-            left: -190px;
-            transition: left ease 0.5s;
-        }
-
-        .menu-hamburger {
-            position: relative;
+        #top-menu .section {
             display: inline-block;
-            width: 1.25em;
-            height: 0.8em;
-            margin-right: 0.3em;
-            border-top: 0.2em solid #fff;
-            border-bottom: 0.2em solid #fff;
+            height: 100%;
+            padding: 0 5px;
+        }
+
+
+        #top-menu .separator {
+            height: 100%;
+            width: 3px;
+            border-right: 1px solid #d0d0d0;
+            padding: 0;
+        }
+
+        #top-menu .button {
+            display: inline-block;
+            height: 100%;
+            color: #FFF;
+            margin: 0 5px;
+            background: none;
+            border: none;
             cursor: pointer;
+            width: 85px;
+            padding: 0;
         }
 
-        .menu-hamburger:before {
-            content: "";
-            position: absolute;
-            top: 0.3em;
-            left: 0px;
-            width: 100%;
-            border-top: 0.2em solid #fff;
+            #top-menu .button.active {
+                font-weight: bold;
+                background: rgba(0,0,0,0.1);
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+
+
+            #top-menu .button:focus {
+                outline: none;
+            }
+
+            #top-menu .button:hover {
+                opacity: 0.7;
+                transition: opacity 0.4s;
+            }
+
+        #top-menu select {
+            font-size: 1em;
+            height: 60%;
+            font-family: abel, Arial;
         }
 
-        #close-menu {
-            cursor: pointer;
-            position: absolute;
-            right: 5px;
-            top: 0;
-            font-size: 1.5em;
+         @media (min-width: 320px) and (max-width: 639px) {
+            #top-menu #title-text {
+                display: none;
+            }
+
+             #top-menu .button {
+                width: 75px;
+                margin: 0;
+            }
         }
 
-         /* Set up some css rules to animate things */
-       
+         #api-link {
+             position: absolute;
+             bottom: 20px;
+             left: 10px;
+             font-weight: bold;
+         }
+
+        /* Set up some css rules to animate things */
+
         /* Some rules to change the appearance of clusters and it's text when activated */
- 
+
         /* Scale up the clusters when activated */
-        .cluster-group.activated {     
-            transform-origin: center; 
+        .cluster-group.activated {
+            transform-origin: center;
             transform: scale(1.2);
             transition: transform linear 0.4s;
         }
 
-         /* Change the appearance of clusters when activated */
-        .cluster-group.activated .cluster {
-            stroke: rgba(255,255,255,1);
-            stroke-width: 2;
-            transition: all ease 1s;
-        }
-           
-        .cluster-group.activated .cluster-text {
-            fill: #000;
-            font-weight: bold;
-            transition: all ease 1s;
-        }
+            /* Change the appearance of clusters when activated */
+            .cluster-group.activated .cluster {
+                stroke: rgba(255,255,255,1);
+                stroke-width: 2;
+                transition: all ease 1s;
+            }
+
+            .cluster-group.activated .cluster-text {
+                fill: #000;
+                font-weight: bold;
+                transition: all ease 1s;
+            }
 
 
         /* hide flares by default */
@@ -143,37 +151,37 @@
             opacity: 0;
         }
 
-       
-       /* animate display of flares */
-        .flare-group.activated {
-            opacity: 1;
-            transition: opacity linear 0.06s;
-        }
 
-        /* this just chains the display of flares to occur one after the other using transition delay - could be a better way to do this natively but using SASS or LESS this would be much more concise */
-        .flare-group.activated:nth-of-type(1) {
-            transition-delay: 0.06s;
-        }
+            /* animate display of flares */
+            .flare-group.activated {
+                opacity: 1;
+                transition: opacity linear 0.06s;
+            }
 
-        .flare-group.activated:nth-of-type(2) {
-            transition-delay: 0.12s;
-        }
+                /* this just chains the display of flares to occur one after the other using transition delay - could be a better way to do this natively but using SASS or LESS this would be much more concise */
+                .flare-group.activated:nth-of-type(1) {
+                    transition-delay: 0.06s;
+                }
 
-        .flare-group.activated:nth-of-type(3) {
-            transition-delay: 0.18s;
-        }
+                .flare-group.activated:nth-of-type(2) {
+                    transition-delay: 0.12s;
+                }
 
-        .flare-group.activated:nth-of-type(4) {
-            transition-delay: 0.24s;
-        }
+                .flare-group.activated:nth-of-type(3) {
+                    transition-delay: 0.18s;
+                }
 
-        .flare-group.activated:nth-of-type(5) {
-            transition-delay: 0.30s;
-        }
+                .flare-group.activated:nth-of-type(4) {
+                    transition-delay: 0.24s;
+                }
 
-        .flare-group.activated:nth-of-type(6) {
-            transition-delay: 0.36s;
-        }
+                .flare-group.activated:nth-of-type(5) {
+                    transition-delay: 0.30s;
+                }
+
+                .flare-group.activated:nth-of-type(6) {
+                    transition-delay: 0.36s;
+                }
 
         .cluster-group .flare-group.activated:nth-of-type(7) {
             transition-delay: 0.42s;
@@ -185,16 +193,15 @@
 
 
         /*
-            Cross browser notes on the example CSS animations: 
+            Cross browser notes on the example CSS animations:
             IE/Edge: These POS's don't support transforms on svg elements using css, so the css transform animations won't work.
         */
-
     </style>
 
 
     <script>
         var dojoConfig = {
-            async: true, 
+            async: true,
             tlmSiblingOfDojo: false,
             packages: [{
                 name: "fcl",
@@ -209,12 +216,12 @@
 
         var map,
             mapView,
-            sceneView, 
+            sceneView,
             activeView,
             graphics,
             clusterLayer;
 
-       //set some defaults
+        //set some defaults
         var maxSingleFlareCount = 8;
         var areaDisplayMode = "activated";
 
@@ -244,9 +251,10 @@
                  "dojo/dom",
                  "dojo/on",
                  "dojo/dom-attr",
+                 "dojo/dom-class",
                  "dojo/text!./data.json"],
         function (Map, Color, MapView, SceneView, Extent, SpatialReference, Point, PopupTemplate, GraphicsLayer, Graphic, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, TextSymbol, TextSymbol3DLayer, Font, ClassBreaksRenderer,
-                   watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, data) {
+                   watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, domClass, data) {
 
             ready(function () {
 
@@ -277,9 +285,6 @@
                 sceneView.ui.move("zoom", "bottom-right");
                 sceneView.ui.move("compass", "bottom-right");
 
-                //activeView = sceneView;
-                activeView = mapView;
-
                 //load up the dummy data
                 var allData = JSON.parse(data);
 
@@ -289,7 +294,7 @@
                         initLayer(allData);
                     }
                 })
-                .otherwise(function(e){
+                .otherwise(function (e) {
                     console.error("failed to load MapView " + e);
                 });
 
@@ -299,22 +304,17 @@
                         initLayer(allData);
                     }
                 })
-                .otherwise(function(e) {
+                .otherwise(function (e) {
                     console.warn("Cannot load scene view - webgl may not be supported by this browser " + e);
-                    domAttr.set(dom.byId("view-mode"), "disabled", true);
+                    dom.byId("scene-view-select").style.display = "none";
                 });
 
-                if (activeView === mapView) {
-                    dojo.addClass(sceneView.container, "hidden");
-                }
-                else {
-                    dojo.addClass(mapView.container, "hidden");
-                }
+                setActiveView(mapView);
+
             });
 
             function initLayer(data) {
 
-       
                 //init the layer, more options are available and explained in the cluster layer constructor
 
                 //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
@@ -340,7 +340,7 @@
                 renderer.addClassBreakInfo(1001, Infinity, xlSymbol);
 
                 var areaRenderer;
-                
+
                 //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
                 var defaultAreaSym = new SimpleFillSymbol({
                     style: "solid",
@@ -362,7 +362,7 @@
                 areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
                 areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
                 areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
-                    
+
                 //Set up another class breaks renderer to style the flares individually
                 var flareRenderer = new ClassBreaksRenderer({
                     defaultSymbol: renderer.defaultSymbol
@@ -392,7 +392,7 @@
                     }]
                 });
 
-               
+
                 var options = {
                     id: "flare-cluster-layer",
                     clusterRenderer: renderer,
@@ -403,7 +403,7 @@
                     subTypeFlareProperty: "facilityType",
                     singleFlareTooltipProperty: "name",
                     displaySubTypeFlares: true,
-                    maxSingleFlareCount: maxSingleFlareCount,                    
+                    maxSingleFlareCount: maxSingleFlareCount,
                     clusterRatio: 75,
                     clusterAreaDisplay: areaDisplayMode,
                     data: data
@@ -411,7 +411,7 @@
 
                 clusterLayer = new fcl.FlareClusterLayer(options);
                 map.add(clusterLayer);
-                
+
             }
 
             function clearLayer() {
@@ -419,33 +419,21 @@
                 clusterLayer = null;
             }
 
-
             //setup some event handlers to react to change of options
+
+            on(dom.byId("map-view-select"), "click", function (evt) {
+                setActiveView(mapView);
+            });
+
+            on(dom.byId("scene-view-select"), "click", function (evt) {
+                setActiveView(sceneView);
+            });
 
             on(dom.byId("area-mode"), "change", function (evt) {
                 clusterLayer.clusterAreaDisplay = this.value;
                 clusterLayer.draw();
             });
 
-            on(dom.byId("view-mode"), "change", function (evt) {
-                var view = this.value === "2d" ? mapView : sceneView;
-                setActiveView(view);
-            });
-
-            on(dom.byId("menu-switch"), "click", function (evt) {
-                var menu = dom.byId("menu");
-                if (menu.classList.contains("closed")) {
-                    menu.classList.remove("closed");
-                }
-                else {
-                    menu.classList.add("closed");
-                }
-            });
-
-            on(dom.byId("close-menu"), "click", function (evt) {
-                var menu = dom.byId("menu");
-                menu.classList.add("closed");
-            });
 
             function setActiveView(view) {
                 if (view === activeView) return; //it's already active
@@ -454,37 +442,28 @@
                     //sync map views location to scene views
                     mapView.viewpoint = sceneView.viewpoint;
 
-                    dojo.addClass(sceneView.container, "hidden");
-                    dojo.removeClass(mapView.container, "hidden");
+                    domClass.add(sceneView.container, "hidden");
+                    domClass.remove(mapView.container, "hidden");
+                    domClass.add(dom.byId("map-view-select"), "active");
+                    domClass.remove(dom.byId("scene-view-select"), "active");
                 }
                 else {
                     //sync scene views location to map views - setting the extent seems to work a whole lot better than setting the viewpoint when swapping to 3D.
                     sceneView.extent = mapView.extent;
 
-                    dojo.addClass(mapView.container, "hidden");
-                    dojo.removeClass(sceneView.container, "hidden");
+                    domClass.add(mapView.container, "hidden");
+                    domClass.remove(sceneView.container, "hidden");
+                    domClass.add(dom.byId("scene-view-select"), "active");
+                    domClass.remove(dom.byId("map-view-select"), "active");
                 }
 
                 //when switching views need to force a recluster
-                clusterLayer.draw(view);
+                if (clusterLayer) {
+                    clusterLayer.draw(view);
+                }
+
                 activeView = view;
             }
-
-            function detectWebGLContext () {
-                // Create canvas element. The canvas is not added to the
-                // document itself, so it is never displayed in the
-                // browser window.
-                var canvas = document.createElement("canvas");
-                // Get WebGLRenderingContext from canvas element.
-                var gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-                // Report the result.
-                if (gl && gl instanceof WebGLRenderingContext) {
-                    alert("supports web gl");
-                } else {
-                    alert("NO webgl");
-                }
-            }
-
         });
 
 
@@ -492,6 +471,8 @@
 
 
 </head>
+
+
 <body>
 
     <div id="container">
@@ -503,34 +484,34 @@
 
         </div>
 
-        <div id="header">
 
-            <span id="menu-switch" class="menu-hamburger" title="Show/hide options"></span>
-
-            <span>Flare cluster layer - API v4.3</span>
-            <a href="index_v3.html">Goto v3.x example</a>
-
-        </div>
-
-        <div id="menu" >
-            <span id="close-menu" title="Hide options">&times;</span>
-            <div><label for="view-mode">View mode:</label></div>
-            <div>
-                <select id="view-mode">
-                    <option value="2d">Map View (2d)</option>
-                    <option value="3d">Scene View (3d)</option>
-                </select>
+        <div id="top-menu">
+            <div class="section text">
+                <span id="title-text">Flare Cluster Layer - </span>API v4.3
             </div>
 
-            <hr />
-            <div><label for="area-mode">Display cluster area mode:</label></div>
-            <div>
+            <span class="separator"></span>
+
+            <div class="section">
+                <button id="map-view-select" class="button">Map View</button>
+                <button id="scene-view-select" class="button"> Scene View</button>
+            </div>
+            <span class="separator"></span>
+
+            <div class="section">
+                Area mode:
                 <select id="area-mode">
                     <option value="">None</option>
                     <option value="activated">Hover</option>
                     <option value="always">Always</option>
                 </select>
             </div>
+
+        </div>
+
+        <div id="api-link">
+            <a href="index_v3.html" >Go to version 3.x</a>
+
         </div>
 
     </div>
