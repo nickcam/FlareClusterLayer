@@ -22,7 +22,7 @@ declare module "esri/views/2d/engine/graphics/Projector" {
     export = Projector;
 }
 
-declare module "dojox/gfx" {
-    import dojoxGfx = __esriExtend.dojoxGfx;
-    export = dojoxGfx;
-}
+//declare module "dojox/gfx" {
+//    import dojoxGfx = __esriExtend.dojoxGfx;
+//    export = dojoxGfx; 
+//}

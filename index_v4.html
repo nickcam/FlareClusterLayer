@@ -11,7 +11,7 @@
 
     <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.4/esri/css/main.css">
 
     <style>
         html, body {
@@ -210,7 +210,7 @@
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.3/"></script>
+    <script src="https://js.arcgis.com/4.4/"></script>
 
     <script type="text/javascript">
 
@@ -412,6 +412,10 @@
                 clusterLayer = new fcl.FlareClusterLayer(options);
                 map.add(clusterLayer);
 
+                clusterLayer.on("draw-complete", function () {
+                    //console.log('draw complete event callback');
+                });
+
             }
 
             function clearLayer() {
@@ -487,7 +491,7 @@
 
         <div id="top-menu">
             <div class="section text">
-                <span id="title-text">Flare Cluster Layer - </span>API v4.3
+                <span id="title-text">Flare Cluster Layer - </span>API v4.4
             </div>
 
             <span class="separator"></span>

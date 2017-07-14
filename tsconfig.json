@@ -10,7 +10,7 @@
     "sourceMap": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "typeRoots": [ "./node_modules/@types" ] //had to set this otherwise the dojo typings don't work for some reason
+    "typeRoots": [ "./node_modules/@types" ] // had to set this otherwise the dojo typings don't work for some reason
   },
   "files": [
     "typescript/FlareClusterLayer_v4.ts"
