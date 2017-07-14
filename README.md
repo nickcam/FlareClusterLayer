@@ -5,7 +5,7 @@ The clustering is performed using a grid system based on the current extent, the
 
 Support for both for 3.x and 4.x arcgis js apis.
 
-Note: The latest version won't work with arcgis v4.x less than 4.2. There's a 4.0, and 4.1 branch in this repo where you can get to the code that works for those versions.
+Note: The latest version won't work with arcgis v4.x less than v4.4. There are branches in this repo where you can get to the code that works for older versions.
 
 ## Features
 
@@ -37,7 +37,7 @@ Moved all of the animations out of the code and added css classes to elements in
 If you want to run the repo locally, just do an 
 npm install
 
-There's no @types package for dojo v11.1 yet, but there is an npm package 'dojo-typings'. So had to just include a reference to the dojo types in a custom index.d.ts file, that also includes some custom typings as well.
+There's no @types package for dojo v11.x yet, but there is an npm package 'dojo-typings'. Even the dojo-typings package doesn't go as high as 1.12.x which arcgis now uses. Had to just include a reference to the dojo types in a custom index.d.ts file, that also includes some custom typings as well. 
 
 If you plan to include the .ts file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
 For example, to use it in an angular 2 project you would change the imports to be -
