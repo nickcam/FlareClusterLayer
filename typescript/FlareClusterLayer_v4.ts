@@ -20,7 +20,7 @@ import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
 import * as MapView from 'esri/views/MapView';
 import * as SceneView from 'esri/views/SceneView';
-
+ 
 import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
 import * as Projector from "esri/views/2d/engine/graphics/Projector";
  

@@ -5,12 +5,12 @@ var sourcemaps = require('gulp-sourcemaps');
 
 var tsProject = ts.createProject("tsconfig.json");
 
-//typescript compile task
+// typescript compile task
 gulp.task('typescript-compile', function () {
 
     var tsResult = tsProject.src()
        .pipe(sourcemaps.init())
-       .pipe(tsProject());
+       .pipe(tsProject()); 
 
     return tsResult.js
         .pipe(sourcemaps.write())
@@ -19,9 +19,9 @@ gulp.task('typescript-compile', function () {
      
 });
 
-//watch for changes on ts files and compile and copy when saved
+// watch for changes on ts files and compile and copy when saved
 gulp.task('watch', function () {
-    return gulp.watch('typescript/**/*.ts', ['typescript-compile']); //watch typescript files to compile.
+    return gulp.watch('typescript/**/*.ts', ['typescript-compile']); // watch typescript files to compile.
 });
 
 gulp.task('default', ["typescript-compile", "watch"]);
