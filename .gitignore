@@ -166,3 +166,4 @@ typings/globals/
 
 .typingsrc
 /.vs/config/applicationhost.config
+/.vs

@@ -33,9 +33,10 @@ import * as query from 'dojo/query';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
  
+
 interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
-    clusterRenderer: ClassBreaksRenderer;
+    clusterRenderer?: ClassBreaksRenderer;
 
     singleRenderer?: any;
     singleSymbol?: SimpleMarkerSymbol;
@@ -73,7 +74,6 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
 }
 
-// extend GraphicsLayer using 'accessorSupport/decorators'
 @asd.subclass("FlareClusterLayer")
 export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
@@ -137,23 +137,24 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             console.error("Missing required parameters to flare cluster layer constructor.");
             return;
         }
-        
+
         this.singlePopupTemplate = options.singlePopupTemplate;
 
         // set up the clustering properties
-        this.clusterRatio = options.clusterRatio || 75;
-        this.clusterToScale = options.clusterToScale || 2000000;
-        this.clusterMinCount = options.clusterMinCount || 2;
-        this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || "name";
+
+        this.clusterRatio = options.clusterRatio || 75; // sets the size of each clusters bounds
+        this.clusterToScale = options.clusterToScale || 2000000; // the scale to stop clustering at and just display single points
+        this.clusterMinCount = options.clusterMinCount || 2; // the min amount of points required in a cluster bounds to justify creating a cluster
+        this.singleFlareTooltipProperty = options.singleFlareTooltipProperty || "name"; // The property name of the dataset to display in a tooltip for a flare when a flare represents a single object.
         if (options.clusterAreaDisplay) {
-            this.clusterAreaDisplay = options.clusterAreaDisplay === "none" ? undefined : options.clusterAreaDisplay;
+            this.clusterAreaDisplay = options.clusterAreaDisplay === "none" ? undefined : options.clusterAreaDisplay; // when to display the area (convex hull) of the points for each each cluster
         }
-        this.maxFlareCount = options.maxFlareCount || 8;
-        this.maxSingleFlareCount = options.maxSingleFlareCount || 8;
-        this.displayFlares = options.displayFlares === false ? false : true; // default to true
-        this.displaySubTypeFlares = options.displaySubTypeFlares === true;
-        this.subTypeFlareProperty = options.subTypeFlareProperty || undefined;
-        this.flareBufferPixels = options.flareBufferPixels || 6;
+        this.maxFlareCount = options.maxFlareCount || 8; // maximum number of flares for each cluster
+        this.maxSingleFlareCount = options.maxSingleFlareCount || 8; // maximum number of single object flares before converting to aggregated flares
+        this.displayFlares = options.displayFlares === false ? false : true; // whether to display flares, default to true 
+        this.displaySubTypeFlares = options.displaySubTypeFlares === true; // whether to display sub type flares, ie: flares that represent the counts of a certain property of the data that is clustered
+        this.subTypeFlareProperty = options.subTypeFlareProperty || undefined; // the property name that the subtype flare will use to count on
+        this.flareBufferPixels = options.flareBufferPixels || 6; // buffer between flares and cluster
 
         // data set property names
         this.xPropertyName = options.xPropertyName || "x";
@@ -167,7 +168,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         this.singleSymbol = options.singleSymbol;
         this.flareRenderer = options.flareRenderer;
 
-        this.refreshOnStationary = options.refreshOnStationary === false ? false : true; // default to true
+        this.refreshOnStationary = options.refreshOnStationary === false ? false : true; // whether this layer should refresh the clusters and redraw when stationary is true, default to true
 
         // add some default symbols or use the options values.
         this.flareSymbol = options.flareSymbol || new SimpleMarkerSymbol({
@@ -202,8 +203,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         if (this._data) {
             this.draw();
         }
-        
-        
+
     }
 
 
@@ -244,7 +244,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         }
 
     }
-     
+
     private _addViewEvents(layerView: any) {
         let v: ActiveView = layerView.view;
         if (!v.fclPointerMove) {
@@ -297,6 +297,10 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     draw(activeView?: any) {
 
         if (activeView) {
+            // if we're swapping views from the currently active one, clear the surface object so it get's recreated fresh after the first draw
+            if (this._activeView && activeView !== this._activeView) {
+                this._activeView.fclSurface = null;
+            }
             this._activeView = activeView;
         }
 
@@ -306,9 +310,15 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             return;
         }
 
-        if (!this._activeView || !this._data) return;
+        let currentExtent = this._extent();
+        if (!this._activeView || !this._data || !currentExtent) return;
 
         this._is2d = this._activeView.type === "2d";
+
+        // check for required renderer
+        if (!this.clusterRenderer) {
+            console.error("FlareClusterLayer: clusterRenderer must be set.");
+        }
 
         // check to make sure we have an area renderer set if one needs to be
         if (this.clusterAreaDisplay && !this.areaRenderer) {
@@ -327,7 +337,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         // The webextent will need to be normalized since panning over the international dateline will cause
         // cause the extent to shift outside the -180 to 180 degree window.  If we don't normalize then the
         // clusters will not be drawn if the map pans over the international dateline.
-        let webExtent: any = !this._extent().spatialReference.isWebMercator ? <Extent>webMercatorUtils.project(this._extent(), new SpatialReference({ "wkid": 102100 })) : this._extent();
+        let webExtent: any = !currentExtent.spatialReference.isWebMercator ? <Extent>webMercatorUtils.project(currentExtent, new SpatialReference({ "wkid": 102100 })) : currentExtent;
         let extentIsUnioned = false;
 
         let normalizedWebExtent = webExtent.normalize();
@@ -431,12 +441,14 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         }
 
         // emit an event to signal drawing is complete. emit is not in typings for graphics layers, so use []'s to access.
-        this["emit"]("draw-complete", {});
+        this.emit("draw-complete", {});
         console.timeEnd(`draw-data-${this._activeView.type}`);
-        
-        setTimeout(() => {
-            this._createSurface();
-        }, 10);
+
+        if (!this._activeView.fclSurface) {
+            setTimeout(() => {
+                this._createSurface();
+            }, 10);
+        }
     }
 
     private _passesFilter(obj: any): boolean {
@@ -620,14 +632,14 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             }
         }
     }
-     
+
     /**
      * Create an svg surface on the view if it doesn't already exist
      * @param view
      */
     private _createSurface() {
 
-        if (this._activeView.fclSurface) return;
+        if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._layerView2d.container.element)) return;
         let surfaceParentElement = undefined;
         if (this._is2d) {
             surfaceParentElement = this._layerView2d.container.element.parentElement || this._layerView2d.container.element.parentNode;
@@ -643,25 +655,27 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domAttr.set(surface.rawNode, "overflow", "visible");
         domAttr.set(surface.rawNode, "class", "fcl-surface");
         this._activeView.fclSurface = surface;
-       
+
     }
 
     private _viewPointerMove(evt) {
 
         let mousePos = this._getMousePos(evt);
-       
+
         // if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
         // TODO: would probably be better to check if the point is in the actual circle of the cluster group and it's flares instead of using the rectanglar bounding box.
-        if (this._activeCluster) {
+        if (this._activeCluster && this._activeCluster.clusterGroup) {
             let bbox = this._activeCluster.clusterGroup.rawNode.getBoundingClientRect();
             if (bbox) {
                 if (mousePos.x >= bbox.left && mousePos.x <= bbox.right && mousePos.y >= bbox.top && mousePos.y <= bbox.bottom) return;
             }
         }
 
-        let v: MapView = this._activeView;
+        if (!this._activeView.ready) return;
 
-        this._activeView.hitTest(mousePos).then((response) => {
+        let hitTest = this._activeView.hitTest(mousePos);
+        if (!hitTest) return;
+        hitTest.then((response) => {
 
             let graphics = response.results;
             if (graphics.length === 0) {
@@ -688,6 +702,11 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         if (this._activeCluster === cluster) {
             return; // already active
         }
+
+        if (!this._activeView.fclSurface) {
+            this._createSurface();
+        }
+
         this._deactivateCluster();
 
         this._activeCluster = cluster;
@@ -706,7 +725,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
     private _deactivateCluster() {
 
-        if (!this._activeCluster) return;
+        if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
 
         this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
         this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
@@ -752,7 +771,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
     private _clearSurface() {
         let surface = this._activeView.fclSurface;
-        query(">", surface.containerGroup.rawNode).forEach(domConstruct.destroy);
+        query(".cluster-group", surface.containerGroup.rawNode).forEach(domConstruct.destroy);
         domStyle.set(surface.rawNode, { zIndex: -1, overflow: "hidden", top: "0px", left: "0px" });
         domAttr.set(surface.rawNode, "overflow", "hidden");
     }
@@ -1016,7 +1035,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         flareGroup.moveToFront();
         for (let i = 0, len = textShapes.length; i < len; i++) {
             textShapes[i].moveToFront();
-        }        
+        }
 
     }
 
@@ -1066,7 +1085,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         let yoffset = graphic.symbol["yoffset"] ? graphic.symbol["yoffset"] * -1 : 0;
         let xoffset = graphic.symbol["xoffset"] ? graphic.symbol["xoffset"] * -1 : 0;
         g._shape.setTransform({ xx: 1, yy: 1, dy: yoffset, dx: xoffset });
-        
+
         return g._shape.rawNode;
     }
 
@@ -1137,6 +1156,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     private _getMousePos(evt) {
         // container on the view is actually a html element at this point, not a string as the typings suggest.
         let container: any = this._activeView.container;
+        if (!container) { return { x: 0, y: 0 } };
         let rect = container.getBoundingClientRect();
         return {
             x: evt.x - rect.left,
@@ -1211,7 +1231,7 @@ class Flare {
     graphic: Graphic;
     textGraphic: Graphic;
     tooltipText: string;
-    flareText: string; 
+    flareText: string;
     singleData: any[];
     flareGroup: any;
     isSummary: boolean;

@@ -9,9 +9,9 @@
 
     <title>Flare Cluster Layer Example</title>
 
-    <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://js.arcgis.com/4.5/esri/css/main.css">
+    <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.6/esri/css/main.css">
 
     <style>
         html, body {
@@ -37,89 +37,89 @@
             }
 
 
- /* top menu */
-    #top-menu {
-        -webkit-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
-        -moz-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
-        box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
-        position: absolute;
-        left: 10px;
-        top: 10px;
-        padding: 0 10px;
-        height: 45px;
-        width: auto;
-        background: rgba(46, 68, 94, 0.8); 
-        z-index: 2001;
-        color: #FFF;
-    }
-
-       
-
-        #top-menu .section {
-            display: inline-block;
-            height: 100%;
-            padding: 0 5px;
-        }
-
-
-        #top-menu .separator {
-            height: 100%;
-            width: 3px;
-            border-right: 1px solid #d0d0d0;
-            padding: 0;
-        }
-
-        #top-menu .button {
-            display: inline-block;
-            height: 100%;
+        /* top menu */
+        #top-menu {
+            -webkit-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+            -moz-box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+            box-shadow: 2px 3px 22px 0px rgba(173, 173, 173, 0.75);
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            padding: 0 10px;
+            height: 45px;
+            width: auto;
+            background: rgba(46, 68, 94, 0.8);
+            z-index: 2001;
             color: #FFF;
-            margin: 0 5px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            width: 85px;
-            padding: 0;
         }
 
-            #top-menu .button.active {
-                font-weight: bold;
-                background: rgba(0,0,0,0.1);
-                border: 1px solid rgba(255,255,255,0.1);
+
+
+            #top-menu .section {
+                display: inline-block;
+                height: 100%;
+                padding: 0 5px;
             }
 
 
-            #top-menu .button:focus {
-                outline: none;
+            #top-menu .separator {
+                height: 100%;
+                width: 3px;
+                border-right: 1px solid #d0d0d0;
+                padding: 0;
             }
 
-            #top-menu .button:hover {
-                opacity: 0.7;
-                transition: opacity 0.4s;
+            #top-menu .button {
+                display: inline-block;
+                height: 100%;
+                color: #FFF;
+                margin: 0 5px;
+                background: none;
+                border: none;
+                cursor: pointer;
+                width: 85px;
+                padding: 0;
             }
 
-        #top-menu select {
-            font-size: 1em;
-            height: 60%;
-            font-family: abel, Arial;
-        }
+                #top-menu .button.active {
+                    font-weight: bold;
+                    background: rgba(0,0,0,0.1);
+                    border: 1px solid rgba(255,255,255,0.1);
+                }
 
-         @media (min-width: 320px) and (max-width: 639px) {
+
+                #top-menu .button:focus {
+                    outline: none;
+                }
+
+                #top-menu .button:hover {
+                    opacity: 0.7;
+                    transition: opacity 0.4s;
+                }
+
+            #top-menu select {
+                font-size: 1em;
+                height: 60%;
+                font-family: abel, Arial;
+            }
+
+        @media (min-width: 320px) and (max-width: 639px) {
             #top-menu #title-text {
                 display: none;
             }
 
-             #top-menu .button {
+            #top-menu .button {
                 width: 75px;
                 margin: 0;
             }
         }
 
-         #api-link {
-             position: absolute;
-             bottom: 20px;
-             left: 10px;
-             font-weight: bold;
-         }
+        #api-link {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            font-weight: bold;
+        }
 
         /* Set up some css rules to animate things */
 
@@ -206,11 +206,14 @@
             packages: [{
                 name: "fcl",
                 location: location.pathname.replace(/\/[^/]+$/, '') + "/fcl"
-            }]
+            }],
+            has: {
+                "esri-promise-compatibility": 1 // enable native promises and remove the warning about using when() instead of then(). https://developers.arcgis.com/javascript/latest/guide/release-notes/index.html#improved-compatibility-with-javascript-promises
+            }
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.5/"></script>
+    <script src="https://js.arcgis.com/4.6/"></script>
 
     <script type="text/javascript">
 
@@ -226,249 +229,248 @@
         var areaDisplayMode = "activated";
 
         require(["esri/Map",
-                 "esri/Color",
-                 "esri/views/MapView",
-                 "esri/views/SceneView",
-                 "esri/geometry/Extent",
-                 "esri/geometry/SpatialReference",
-                 "esri/geometry/Point",
-                 "esri/PopupTemplate",
-                 "esri/layers/GraphicsLayer",
-                 "esri/Graphic",
-                 "esri/symbols/SimpleMarkerSymbol",
-                 "esri/symbols/SimpleLineSymbol",
-                 "esri/symbols/SimpleFillSymbol",
-                 "esri/symbols/TextSymbol",
-                 "esri/symbols/TextSymbol3DLayer",
-                 "esri/symbols/Font",
-                 "esri/renderers/ClassBreaksRenderer",
-                 "esri/core/watchUtils",
-                 "esri/geometry/support/webMercatorUtils",
-                 "fcl/FlareClusterLayer_v4",
-                 "dojo",
-                 "dojo/ready",
-                 "dojo/json",
-                 "dojo/dom",
-                 "dojo/on",
-                 "dojo/dom-attr",
-                 "dojo/dom-class",
-                 "dojo/text!./data.json"],
-        function (Map, Color, MapView, SceneView, Extent, SpatialReference, Point, PopupTemplate, GraphicsLayer, Graphic, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, TextSymbol, TextSymbol3DLayer, Font, ClassBreaksRenderer,
-                   watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, domClass, data) {
+            "esri/Color",
+            "esri/views/MapView",
+            "esri/views/SceneView",
+            "esri/geometry/Extent",
+            "esri/geometry/SpatialReference",
+            "esri/geometry/Point",
+            "esri/PopupTemplate",
+            "esri/layers/GraphicsLayer",
+            "esri/Graphic",
+            "esri/symbols/SimpleMarkerSymbol",
+            "esri/symbols/SimpleLineSymbol",
+            "esri/symbols/SimpleFillSymbol",
+            "esri/symbols/TextSymbol",
+            "esri/symbols/TextSymbol3DLayer",
+            "esri/symbols/Font",
+            "esri/renderers/ClassBreaksRenderer",
+            "esri/core/watchUtils",
+            "esri/geometry/support/webMercatorUtils",
+            "fcl/FlareClusterLayer_v4",
+            "dojo",
+            "dojo/ready",
+            "dojo/json",
+            "dojo/dom",
+            "dojo/on",
+            "dojo/dom-attr",
+            "dojo/dom-class",
+            "dojo/text!./data.json"],
+            function (Map, Color, MapView, SceneView, Extent, SpatialReference, Point, PopupTemplate, GraphicsLayer, Graphic, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, TextSymbol, TextSymbol3DLayer, Font, ClassBreaksRenderer,
+                watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, domClass, data) {
 
-            ready(function () {
+                ready(function () {
 
-                document.getElementById("area-mode").value = areaDisplayMode;
+                    document.getElementById("area-mode").value = areaDisplayMode;
 
-                map = new Map({
-                    basemap: "gray"
+                    map = new Map({
+                        basemap: "gray"
+                    });
+
+                    mapView = new MapView({
+                        map: map,
+                        container: "views",
+                        center: [133, -25],
+                        zoom: 4,
+                        constraints: { minZoom: 3 },
+                        ui: { components: ["compass", "zoom"] }
+                    });
+                    mapView.ui.move("zoom", "bottom-right");
+                    mapView.ui.move("compass", "bottom-right");
+
+                    // default map view to be active
+                    activeView = mapView;
+                    setActiveViewClasses(activeView);
+
+                    sceneView = new SceneView({
+                        map: map,
+                        center: [133, -25],
+                        zoom: 4,
+                        ui: { components: ["compass", "zoom"] }
+                    });
+                    sceneView.ui.move("zoom", "bottom-right");
+                    sceneView.ui.move("compass", "bottom-right");
+
+                    //load up the dummy data
+                    var allData = JSON.parse(data);
+
+                    mapView.when(function (e) {
+                        console.log('map view loaded');
+                        if (activeView === mapView) {
+                            initLayer(allData);
+                        }
+                    }, function (err) {
+                        console.error("failed to load MapView " + e);
+                    });
+
                 });
 
-                mapView = new MapView({
-                    map: map,
-                    container: "mapView",
-                    center: [133, -25],
-                    zoom: 4,
-                    constraints: { minZoom: 3 },
-                    ui: { components: ["compass", "zoom"] }
-                });
-                mapView.ui.move("zoom", "bottom-right");
-                mapView.ui.move("compass", "bottom-right");
+                function initLayer(data) {
 
-                sceneView = new SceneView({
-                    container: "sceneView",
-                    map: map,
-                    center: [133, -25],
-                    zoom: 4,
-                    ui: { components: ["compass", "zoom"] }
-                });
-                sceneView.ui.move("zoom", "bottom-right");
-                sceneView.ui.move("compass", "bottom-right");
+                    //init the layer, more options are available and explained in the cluster layer constructor
 
-                //load up the dummy data
-                var allData = JSON.parse(data);
+                    //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
+                    var defaultSym = new SimpleMarkerSymbol({
+                        size: 6,
+                        color: "#FF0000",
+                        outline: null
+                    });
 
-                mapView.then(function (e) {
-                    console.log('map view loaded');
-                    if (activeView === mapView) {
-                        initLayer(allData);
+                    var renderer = new ClassBreaksRenderer({
+                        defaultSymbol: defaultSym
+                    });
+                    renderer.field = "clusterCount";
+
+                    var smSymbol = new SimpleMarkerSymbol({ size: 22, outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }), color: [255, 204, 102, 0.8] });
+                    var mdSymbol = new SimpleMarkerSymbol({ size: 24, outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }), color: [102, 204, 255, 0.8] });
+                    var lgSymbol = new SimpleMarkerSymbol({ size: 28, outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }), color: [51, 204, 51, 0.8] });
+                    var xlSymbol = new SimpleMarkerSymbol({ size: 32, outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
+
+                    renderer.addClassBreakInfo(0, 19, smSymbol);
+                    renderer.addClassBreakInfo(20, 150, mdSymbol);
+                    renderer.addClassBreakInfo(151, 1000, lgSymbol);
+                    renderer.addClassBreakInfo(1001, Infinity, xlSymbol);
+
+                    var areaRenderer;
+
+                    // if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
+                    var defaultAreaSym = new SimpleFillSymbol({
+                        style: "solid",
+                        color: [0, 0, 0, 0.2],
+                        outline: new SimpleLineSymbol({ color: [0, 0, 0, 0.3] })
+                    });
+
+                    areaRenderer = new ClassBreaksRenderer({
+                        defaultSymbol: defaultAreaSym
+                    });
+                    areaRenderer.field = "clusterCount";
+
+                    var smAreaSymbol = new SimpleFillSymbol({ color: [255, 204, 102, 0.4], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8], style: "dash" }) });
+                    var mdAreaSymbol = new SimpleFillSymbol({ color: [102, 204, 255, 0.4], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8], style: "dash" }) });
+                    var lgAreaSymbol = new SimpleFillSymbol({ color: [51, 204, 51, 0.4], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8], style: "dash" }) });
+                    var xlAreaSymbol = new SimpleFillSymbol({ color: [250, 65, 74, 0.4], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8], style: "dash" }) });
+
+                    areaRenderer.addClassBreakInfo(0, 19, smAreaSymbol);
+                    areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
+                    areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
+                    areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
+
+                    // Set up another class breaks renderer to style the flares individually
+                    var flareRenderer = new ClassBreaksRenderer({
+                        defaultSymbol: renderer.defaultSymbol
+                    });
+                    flareRenderer.field = "clusterCount";
+
+                    var smFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [255, 204, 102, 0.8], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }) });
+                    var mdFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [102, 204, 255, 0.8], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }) });
+                    var lgFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [51, 204, 51, 0.8], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }) });
+                    var xlFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [250, 65, 74, 0.8], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }) });
+
+                    flareRenderer.addClassBreakInfo(0, 19, smFlareSymbol);
+                    flareRenderer.addClassBreakInfo(20, 150, mdFlareSymbol);
+                    flareRenderer.addClassBreakInfo(151, 1000, lgFlareSymbol);
+                    flareRenderer.addClassBreakInfo(1001, Infinity, xlFlareSymbol);
+
+                    // set up a popup template
+                    var popupTemplate = new PopupTemplate({
+                        title: "{name}",
+                        content: [{
+                            type: "fields",
+                            fieldInfos: [
+                                { fieldName: "facilityType", label: "Facility Type", visible: true },
+                                { fieldName: "postcode", label: "Post Code", visible: true },
+                                { fieldName: "isOpen", label: "Opening Hours", visible: true }
+                            ]
+                        }]
+                    });
+
+
+                    var options = {
+                        id: "flare-cluster-layer",
+                        clusterRenderer: renderer,
+                        areaRenderer: areaRenderer,
+                        flareRenderer: flareRenderer,
+                        singlePopupTemplate: popupTemplate,
+                        spatialReference: new SpatialReference({ "wkid": 4326 }),
+                        subTypeFlareProperty: "facilityType",
+                        singleFlareTooltipProperty: "name",
+                        displaySubTypeFlares: true,
+                        maxSingleFlareCount: maxSingleFlareCount,
+                        clusterRatio: 75,
+                        clusterAreaDisplay: areaDisplayMode,
+                        data: data
                     }
-                })
-                .otherwise(function (e) {
-                    console.error("failed to load MapView " + e);
+
+                    clusterLayer = new fcl.FlareClusterLayer(options);
+                    map.add(clusterLayer);
+
+                    clusterLayer.on("draw-complete", function () {
+                        //console.log('draw complete event callback');
+                    });
+
+                }
+
+                function clearLayer() {
+                    map.remove(clusterLayer);
+                    clusterLayer = null;
+                }
+
+                //setup some event handlers to react to change of options
+
+                on(dom.byId("map-view-select"), "click", function (evt) {
+                    setActiveView(mapView);
                 });
 
-                sceneView.then(function (e) {
-                    console.log('scene view loaded');
-                    if (activeView === sceneView) {
-                        initLayer(allData);
+                on(dom.byId("scene-view-select"), "click", function (evt) {
+                    setActiveView(sceneView);
+                });
+
+                on(dom.byId("area-mode"), "change", function (evt) {
+                    clusterLayer.clusterAreaDisplay = this.value;
+                    clusterLayer.draw();
+                });
+
+
+                function setActiveView(view) {
+                    if (view === activeView) return; // it's already active
+
+                    var container = activeView.container;
+                    activeView.container = null;
+                    var viewpoint = activeView.viewpoint.clone();
+                    if (view === mapView) {
+                        mapView.viewpoint = viewpoint;
+                        mapView.container = container;
+                        mapView.rotation = 0;
+                        activeView = mapView;
                     }
-                })
-                .otherwise(function (e) {
-                    console.warn("Cannot load scene view - webgl may not be supported by this browser " + e);
-                    dom.byId("scene-view-select").style.display = "none";
-                });
+                    else {
+                        sceneView.viewpoint = viewpoint;
+                        sceneView.container = container;
+                        activeView = sceneView;
+                    }
 
-                setActiveView(mapView);
+                    setActiveViewClasses(view);
 
-            });
-
-            function initLayer(data) {
-
-                //init the layer, more options are available and explained in the cluster layer constructor
-
-                //set up a class breaks renderer to render different symbols based on the cluster count. Use the required clusterCount property to break on.
-                var defaultSym = new SimpleMarkerSymbol({
-                    size: 6,
-                    color: "#FF0000",
-                    outline: null
-                });
-
-                var renderer = new ClassBreaksRenderer({
-                    defaultSymbol: defaultSym
-                });
-                renderer.field = "clusterCount";
-
-                var smSymbol = new SimpleMarkerSymbol({ size: 22, outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }), color: [255, 204, 102, 0.8] });
-                var mdSymbol = new SimpleMarkerSymbol({ size: 24, outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }), color: [102, 204, 255, 0.8] });
-                var lgSymbol = new SimpleMarkerSymbol({ size: 28, outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }), color: [51, 204, 51, 0.8] });
-                var xlSymbol = new SimpleMarkerSymbol({ size: 32, outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
-
-                renderer.addClassBreakInfo(0, 19, smSymbol);
-                renderer.addClassBreakInfo(20, 150, mdSymbol);
-                renderer.addClassBreakInfo(151, 1000, lgSymbol);
-                renderer.addClassBreakInfo(1001, Infinity, xlSymbol);
-
-                var areaRenderer;
-
-                //if area display mode is set. Create a renderer to display cluster areas. Use SimpleFillSymbols as the areas are polygons
-                var defaultAreaSym = new SimpleFillSymbol({
-                    style: "solid",
-                    color: [0, 0, 0, 0.2],
-                    outline: new SimpleLineSymbol({ color: [0, 0, 0, 0.3] })
-                });
-
-                areaRenderer = new ClassBreaksRenderer({
-                    defaultSymbol: defaultAreaSym
-                });
-                areaRenderer.field = "clusterCount";
-
-                var smAreaSymbol = new SimpleFillSymbol({ color: [255, 204, 102, 0.4], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8], style: "dash" }) });
-                var mdAreaSymbol = new SimpleFillSymbol({ color: [102, 204, 255, 0.4], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8], style: "dash" }) });
-                var lgAreaSymbol = new SimpleFillSymbol({ color: [51, 204, 51, 0.4], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8], style: "dash" }) });
-                var xlAreaSymbol = new SimpleFillSymbol({ color: [250, 65, 74, 0.4], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8], style: "dash" }) });
-
-                areaRenderer.addClassBreakInfo(0, 19, smAreaSymbol);
-                areaRenderer.addClassBreakInfo(20, 150, mdAreaSymbol);
-                areaRenderer.addClassBreakInfo(151, 1000, lgAreaSymbol);
-                areaRenderer.addClassBreakInfo(1001, Infinity, xlAreaSymbol);
-
-                //Set up another class breaks renderer to style the flares individually
-                var flareRenderer = new ClassBreaksRenderer({
-                    defaultSymbol: renderer.defaultSymbol
-                });
-                flareRenderer.field = "clusterCount";
-
-                var smFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [255, 204, 102, 0.8], outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }) });
-                var mdFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [102, 204, 255, 0.8], outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }) });
-                var lgFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [51, 204, 51, 0.8], outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }) });
-                var xlFlareSymbol = new SimpleMarkerSymbol({ size: 14, color: [250, 65, 74, 0.8], outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }) });
-
-                flareRenderer.addClassBreakInfo(0, 19, smFlareSymbol);
-                flareRenderer.addClassBreakInfo(20, 150, mdFlareSymbol);
-                flareRenderer.addClassBreakInfo(151, 1000, lgFlareSymbol);
-                flareRenderer.addClassBreakInfo(1001, Infinity, xlFlareSymbol);
-
-                //set up a popup template
-                var popupTemplate = new PopupTemplate({
-                    title: "{name}",
-                    content: [{
-                        type: "fields",
-                        fieldInfos: [
-                         { fieldName: "facilityType", label: "Facility Type", visible: true },
-                         { fieldName: "postcode", label: "Post Code", visible: true },
-                         { fieldName: "isOpen", label: "Opening Hours", visible: true }
-                        ]
-                    }]
-                });
-
-
-                var options = {
-                    id: "flare-cluster-layer",
-                    clusterRenderer: renderer,
-                    areaRenderer: areaRenderer,
-                    flareRenderer: flareRenderer,
-                    singlePopupTemplate: popupTemplate,
-                    spatialReference: new SpatialReference({ "wkid": 4326 }),
-                    subTypeFlareProperty: "facilityType",
-                    singleFlareTooltipProperty: "name",
-                    displaySubTypeFlares: true,
-                    maxSingleFlareCount: maxSingleFlareCount,
-                    clusterRatio: 75,
-                    clusterAreaDisplay: areaDisplayMode,
-                    data: data
+                    activeView.when(() => {
+                        //when switching views force a redraw
+                        if (clusterLayer) {
+                            clusterLayer.draw(view);
+                        }
+                    });
                 }
 
-                clusterLayer = new fcl.FlareClusterLayer(options);
-                map.add(clusterLayer);
-
-                clusterLayer.on("draw-complete", function () {
-                    //console.log('draw complete event callback');
-                });
-
-            }
-
-            function clearLayer() {
-                map.remove(clusterLayer);
-                clusterLayer = null;
-            }
-
-            //setup some event handlers to react to change of options
-
-            on(dom.byId("map-view-select"), "click", function (evt) {
-                setActiveView(mapView);
-            });
-
-            on(dom.byId("scene-view-select"), "click", function (evt) {
-                setActiveView(sceneView);
-            });
-
-            on(dom.byId("area-mode"), "change", function (evt) {
-                clusterLayer.clusterAreaDisplay = this.value;
-                clusterLayer.draw();
-            });
-
-
-            function setActiveView(view) {
-                if (view === activeView) return; //it's already active
-
-                if (view === mapView) {
-                    //sync map views location to scene views
-                    mapView.viewpoint = sceneView.viewpoint;
-
-                    domClass.add(sceneView.container, "hidden");
-                    domClass.remove(mapView.container, "hidden");
-                    domClass.add(dom.byId("map-view-select"), "active");
-                    domClass.remove(dom.byId("scene-view-select"), "active");
-                }
-                else {
-                    //sync scene views location to map views - setting the extent seems to work a whole lot better than setting the viewpoint when swapping to 3D.
-                    sceneView.extent = mapView.extent;
-
-                    domClass.add(mapView.container, "hidden");
-                    domClass.remove(sceneView.container, "hidden");
-                    domClass.add(dom.byId("scene-view-select"), "active");
-                    domClass.remove(dom.byId("map-view-select"), "active");
+                function setActiveViewClasses(view) {
+                    if (view === mapView) {
+                        domClass.add(dom.byId("map-view-select"), "active");
+                        domClass.remove(dom.byId("scene-view-select"), "active");
+                    }
+                    else {
+                        domClass.add(dom.byId("scene-view-select"), "active");
+                        domClass.remove(dom.byId("map-view-select"), "active");
+                    }
                 }
 
-                //when switching views need to force a recluster
-                if (clusterLayer) {
-                    clusterLayer.draw(view);
-                }
-
-                activeView = view;
-            }
-        });
+            });
 
 
     </script>
@@ -481,17 +483,12 @@
 
     <div id="container">
 
-        <div class="view" id="mapView">
-
+        <div class="view" id="views">
         </div>
-        <div class="view" id="sceneView">
-
-        </div>
-
 
         <div id="top-menu">
             <div class="section text">
-                <span id="title-text">Flare Cluster Layer - </span>API v4.5
+                <span id="title-text">Flare Cluster Layer - </span>API v4.6
             </div>
 
             <span class="separator"></span>
