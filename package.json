@@ -3,13 +3,19 @@
   "name": "FlareClusterLayer",
   "private": true,
   "scripts": {
-  }, 
+    "clean": "rimraf dist",
+    "build": "tsc",
+    "server": "http-server",
+    "watch:build": "tsc --watch",
+    "reload": "reload -b",
+    "start": "npm-run-all clean build --parallel watch:build reload --print-label"
+  },
   "devDependencies": {
-    "dojo-typings": "1.11.7",
-    "gulp": "3.9.1",
-    "gulp-typescript": "^3.1.4",  
-    "typescript": "2.5.3",
-    "gulp-sourcemaps": "^1.9.1",  
-    "@types/arcgis-js-api": "4.6.0"     
+    "typescript": "3.1.6",
+    "@types/arcgis-js-api": "4.9.0",
+    "dojo-typings": "1.11.9",
+    "npm-run-all": "^4.1.3",
+    "rimraf": "^2.6.2",
+    "reload": "2.3.1"
   }
 }
