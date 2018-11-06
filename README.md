@@ -34,8 +34,8 @@ I used typescript to build the v4 version (because typescript rocks), so you cou
 
 Moved all of the animations out of the code and added css classes to elements instead. Animations can be performed using css instead of in code. This allows for much more flexibility. Example css that replicates/extends the v3.x animations are in the index_v4.html example.
 
-If you want to run the repo locally, just do an 
-npm install
+If you want to run the repo locally, just npm install and run 
+npm start
 
 There's no @types package for dojo v11.x yet, but there is an npm package 'dojo-typings'. Even the dojo-typings package doesn't go as high as 1.12.x which arcgis now uses. Had to just include a reference to the dojo types in a custom index.d.ts file, that also includes some custom typings as well. 
 
