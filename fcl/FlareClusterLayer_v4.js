@@ -5,7 +5,7 @@ var __extends = (this && this.__extends) || (function () {
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
             function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
         return extendStatics(d, b);
-    }
+    };
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -21,7 +21,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", "esri/core/watchUtils", "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", "esri/geometry/geometryEngine", "esri/geometry/SpatialReference", "esri/views/2d/engine/graphics/GFXObject", "esri/views/2d/engine/graphics/Projector", "esri/core/accessorSupport/decorators", "dojo/on", "dojox/gfx", "dojo/dom-construct", "dojo/query", "dojo/dom-attr", "dojo/dom-style"], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, GFXObject, Projector, asd, on, gfx, domConstruct, query, domAttr, domStyle) {
+define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", "esri/core/watchUtils", "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", "esri/geometry/geometryEngine", "esri/geometry/SpatialReference", "esri/core/accessorSupport/decorators", "dojo/on", "dojox/gfx", "dojo/dom-construct", "dojo/query", "dojo/dom-attr", "dojo/dom-style"], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, asd, on, gfx, domConstruct, query, domAttr, domStyle) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var FlareClusterLayer = /** @class */ (function (_super) {
@@ -566,15 +566,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             // we're going to replicate a cluster graphic in the svg element we added to the layer view. Just so it can be styled easily. Native WebGL for Scene Views would probably be better, but at least this way css can still be used to style/animate things.
             this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
             this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
-            // create the cluster shape
-            var clonedClusterElement = this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic, this._activeCluster.clusterGroup);
-            this._addClassToElement(clonedClusterElement, "cluster");
-            // create the cluster text shape
-            var clonedTextElement = this._createClonedElementFromGraphic(this._activeCluster.textGraphic, this._activeCluster.clusterGroup);
-            this._addClassToElement(clonedTextElement, "cluster-text");
-            clonedTextElement.setAttribute("pointer-events", "none");
-            this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
-            this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
             // set the group elements class     
             this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
         };
@@ -681,15 +672,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     return "continue";
                 // create a group to hold flare object and text if needed. 
                 f.flareGroup = this_1._activeCluster.clusterGroup.createGroup();
-                var position = this_1._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i_2, degreeVariance, viewRotation);
                 this_1._addClassToElement(f.flareGroup.rawNode, "flare-group");
-                var flareElement = this_1._createClonedElementFromGraphic(f.graphic, f.flareGroup);
-                f.flareGroup.rawNode.appendChild(flareElement);
-                if (f.textGraphic) {
-                    var flareTextElement = this_1._createClonedElementFromGraphic(f.textGraphic, f.flareGroup);
-                    flareTextElement.setAttribute("pointer-events", "none");
-                    f.flareGroup.rawNode.appendChild(flareTextElement);
-                }
                 this_1._addClassToElement(f.flareGroup.rawNode, "activated", 10);
                 // assign some event handlers for the tooltips
                 f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", function () { return _this._createTooltip(f); });
@@ -771,41 +754,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             query(".tooltip-text", this._activeView.fclSurface.rawNode).forEach(domConstruct.destroy);
         };
         // #region helper functions
-        FlareClusterLayer.prototype._createClonedElementFromGraphic = function (graphic, surface) {
-            // fake out a GFXObject so we can generate an svg shape that the passed in graphics shape
-            var g = new GFXObject();
-            g.graphic = graphic;
-            g.renderingInfo = { symbol: graphic.symbol };
-            // set up parameters for the call to render
-            // set the transform of the projector to 0's as we're just placing the generated cluster shape at exactly 0,0.
-            var projector = new Projector();
-            projector._transform = [0, 0, 0, 0, 0, 0];
-            projector._resolution = 0;
-            var state = undefined;
-            if (this._is2d) {
-                state = this._activeView.state;
-            }
-            else {
-                // fake out a state object for 3d views.
-                state = {
-                    clippedExtent: this._activeView.extent,
-                    rotation: 0,
-                    spatialReference: this._activeView.spatialReference,
-                    worldScreenWidth: 1
-                };
-            }
-            var par = {
-                surface: surface,
-                state: state,
-                projector: projector
-            };
-            g.doRender(par);
-            // need to fix up the transform of the new shape. Text symbols seem to get a bit out of whack.
-            var yoffset = graphic.symbol["yoffset"] ? graphic.symbol["yoffset"] * -1 : 0;
-            var xoffset = graphic.symbol["xoffset"] ? graphic.symbol["xoffset"] * -1 : 0;
-            g._shape.setTransform({ xx: 1, yy: 1, dy: yoffset, dx: xoffset });
-            return g._shape.rawNode;
-        };
         FlareClusterLayer.prototype._extent = function () {
             return this._activeView ? this._activeView.extent : undefined;
         };
