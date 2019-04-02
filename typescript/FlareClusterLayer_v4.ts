@@ -11,21 +11,14 @@ import * as watchUtils from 'esri/core/watchUtils';
 import * as View from 'esri/views/View';
 import * as webMercatorUtils from "esri/geometry/support/webMercatorUtils";
 import * as Graphic from "esri/Graphic";
-import * as Point from "esri/geometry/Point"; 
-import * as ScreenPoint from "esri/geometry/ScreenPoint";
+import * as Point from "esri/geometry/Point";
 import * as Multipoint from "esri/geometry/Multipoint";
 import * as Polygon from "esri/geometry/Polygon";
 import * as geometryEngine from 'esri/geometry/geometryEngine';
 import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
 import * as MapView from 'esri/views/MapView';
-import * as SceneView from 'esri/views/SceneView';
- 
-import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
-import * as Projector from "esri/views/2d/engine/graphics/Projector";
- 
 import * as asd from "esri/core/accessorSupport/decorators";
-
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
 import * as domConstruct from 'dojo/dom-construct';
@@ -33,7 +26,10 @@ import * as query from 'dojo/query';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
  
-
+interface ScreenPoint extends __esri.ScreenPoint {
+    x: number;
+    y: number;
+}
 interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
     clusterRenderer?: ClassBreaksRenderer;
@@ -785,18 +781,6 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
 
-        // create the cluster shape
-        let clonedClusterElement = this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic, this._activeCluster.clusterGroup);
-        this._addClassToElement(clonedClusterElement, "cluster");
-
-        // create the cluster text shape
-        let clonedTextElement = this._createClonedElementFromGraphic(this._activeCluster.textGraphic, this._activeCluster.clusterGroup);
-        this._addClassToElement(clonedTextElement, "cluster-text");
-        clonedTextElement.setAttribute("pointer-events", "none");
-
-        this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
-        this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
-
         // set the group elements class     
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
 
@@ -927,16 +911,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             // create a group to hold flare object and text if needed. 
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
 
-            let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
-
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");
-            let flareElement = this._createClonedElementFromGraphic(f.graphic, f.flareGroup);
-            f.flareGroup.rawNode.appendChild(flareElement);
-            if (f.textGraphic) {
-                let flareTextElement = this._createClonedElementFromGraphic(f.textGraphic, f.flareGroup);
-                flareTextElement.setAttribute("pointer-events", "none");
-                f.flareGroup.rawNode.appendChild(flareTextElement);
-            }
 
             this._addClassToElement(f.flareGroup.rawNode, "activated", 10);
 
@@ -1046,49 +1021,6 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
     // #region helper functions
 
-    private _createClonedElementFromGraphic(graphic: Graphic, surface: any): HTMLElement {
-
-        // fake out a GFXObject so we can generate an svg shape that the passed in graphics shape
-        let g = new GFXObject();
-        g.graphic = graphic;
-        g.renderingInfo = { symbol: graphic.symbol };
-
-        // set up parameters for the call to render
-        // set the transform of the projector to 0's as we're just placing the generated cluster shape at exactly 0,0.
-        let projector = new Projector();
-        projector._transform = [0, 0, 0, 0, 0, 0];
-        projector._resolution = 0;
-
-        let state = undefined;
-        if (this._is2d) {
-            state = this._activeView.state;
-        }
-        else {
-            // fake out a state object for 3d views.
-            state = {
-                clippedExtent: this._activeView.extent,
-                rotation: 0,
-                spatialReference: this._activeView.spatialReference,
-                worldScreenWidth: 1
-            };
-        }
-
-        let par = {
-            surface: surface,
-            state: state,
-            projector: projector
-        };
-
-        g.doRender(par);
-
-        // need to fix up the transform of the new shape. Text symbols seem to get a bit out of whack.
-        let yoffset = graphic.symbol["yoffset"] ? graphic.symbol["yoffset"] * -1 : 0;
-        let xoffset = graphic.symbol["xoffset"] ? graphic.symbol["xoffset"] * -1 : 0;
-        g._shape.setTransform({ xx: 1, yy: 1, dy: yoffset, dx: xoffset });
-
-        return g._shape.rawNode;
-    }
-
 
     private _extent(): Extent {
         return this._activeView ? this._activeView.extent : undefined;
@@ -1195,7 +1127,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
 
 // interface ActiveView extends MapView and SceneView to add some properties {
-interface ActiveView extends MapView, SceneView {
+interface ActiveView extends MapView {
     canvas: any;
     state: any;
     fclSurface: any;
@@ -1203,7 +1135,7 @@ interface ActiveView extends MapView, SceneView {
     fclPointerDown: IHandle;
 
     constraints: any;
-    goTo: (target: any, options: __esri.MapViewGoToOptions) => IPromise<any>;
+    goTo: (target: any, options: __esri.MapViewBaseGoToOptions) => IPromise<any>;
     toMap: (screenPoint: ScreenPoint) => Point;
 }
 
