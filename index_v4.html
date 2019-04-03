@@ -434,9 +434,10 @@
                 function setActiveView(view) {
                     if (view === activeView) return; // it's already active
 
+                    var viewpoint = activeView.viewpoint.clone();
                     var container = activeView.container;
                     activeView.container = null;
-                    var viewpoint = activeView.viewpoint.clone();
+                    
                     if (view === mapView) {
                         mapView.viewpoint = viewpoint;
                         mapView.container = container;

@@ -502,30 +502,48 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             if (this._activeCluster === cluster) {
                 return; // already active
             }
-            if (!this._activeView.fclSurface) {
-                this._createSurface();
-            }
             this._deactivateCluster();
             this._activeCluster = cluster;
-            this._initSurface();
-            this._initCluster();
-            this._initFlares();
-            this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+            // reorder the graphics to put active one on top
+            this.graphics.reorder(this._activeCluster.clusterGraphic, this.graphics.length - 1);
+            this.graphics.reorder(this._activeCluster.textGraphic, this.graphics.length - 1);
+            if (this._activeCluster.areaGraphic) {
+                this.graphics.reorder(this._activeCluster.areaGraphic, 0);
+            }
             if (this.clusterAreaDisplay === "activated") {
                 this._showGraphic(this._activeCluster.areaGraphic);
             }
+            /* Commenting out the below until flares can be updated to work in v4.10+
+            if (!this._activeView.fclSurface) {
+                this._createSurface();
+            }
+    
+     
+            this._initSurface();
+            this._initCluster();
+            this._initFlares();
+    
+            this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+    
+            */
             //console.log("activate cluster");
         };
         FlareClusterLayer.prototype._deactivateCluster = function () {
-            if (!this._activeCluster || !this._activeCluster.clusterGroup)
+            //if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
+            if (!this._activeCluster)
                 return;
-            this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
-            this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
             if (this.clusterAreaDisplay === "activated") {
                 this._hideGraphic(this._activeCluster.areaGraphic);
             }
+            this._activeCluster = undefined;
+            /* Commenting out the below until flares can be updated to work in v4.10+
+            this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+            this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
+    
+            
             this._clearSurface();
             this._activeCluster = undefined;
+            */
             //console.log("DE-activate cluster");
         };
         FlareClusterLayer.prototype._initSurface = function () {

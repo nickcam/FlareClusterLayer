@@ -18,6 +18,7 @@ import * as geometryEngine from 'esri/geometry/geometryEngine';
 import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
 import * as MapView from 'esri/views/MapView';
+import * as SceneView from 'esri/views/MapView';
 import * as asd from "esri/core/accessorSupport/decorators";
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
@@ -30,6 +31,7 @@ interface ScreenPoint extends __esri.ScreenPoint {
     x: number;
     y: number;
 }
+
 interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
     clusterRenderer?: ClassBreaksRenderer;
@@ -699,39 +701,57 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             return; // already active
         }
 
+        this._deactivateCluster();
+
+        this._activeCluster = cluster;
+
+        // reorder the graphics to put active one on top
+        this.graphics.reorder(this._activeCluster.clusterGraphic, this.graphics.length - 1);
+        this.graphics.reorder(this._activeCluster.textGraphic, this.graphics.length - 1);
+        if (this._activeCluster.areaGraphic) {
+            this.graphics.reorder(this._activeCluster.areaGraphic, 0);
+        }
+
+
+        if (this.clusterAreaDisplay === "activated") {
+            this._showGraphic(this._activeCluster.areaGraphic);
+        }
+
+        /* Commenting out the below until flares can be updated to work in v4.10+
         if (!this._activeView.fclSurface) {
             this._createSurface();
         }
 
-        this._deactivateCluster();
-
-        this._activeCluster = cluster;
+ 
         this._initSurface();
         this._initCluster();
         this._initFlares();
 
         this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
 
-        if (this.clusterAreaDisplay === "activated") {
-            this._showGraphic(this._activeCluster.areaGraphic);
-        }
+        */
 
         //console.log("activate cluster");
     }
 
     private _deactivateCluster() {
 
-        if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
-
-        this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
-        this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
+        //if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
+        if (!this._activeCluster) return;
 
         if (this.clusterAreaDisplay === "activated") {
             this._hideGraphic(this._activeCluster.areaGraphic);
         }
+        this._activeCluster = undefined;
 
+        /* Commenting out the below until flares can be updated to work in v4.10+
+        this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+        this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
+
+        
         this._clearSurface();
         this._activeCluster = undefined;
+        */
 
         //console.log("DE-activate cluster");
 
@@ -1127,7 +1147,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
 
 // interface ActiveView extends MapView and SceneView to add some properties {
-interface ActiveView extends MapView {
+interface ActiveView extends MapView, SceneView {
     canvas: any;
     state: any;
     fclSurface: any;
