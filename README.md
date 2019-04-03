@@ -5,7 +5,8 @@ The clustering is performed using a grid system based on the current extent, the
 
 Support for both for 3.x and 4.x arcgis js apis.
 
-Note: The latest version will only work with arcgis v4.x versions **v4.6** to **v4.9**, and not with v4.10 currently (ref. [#37](https://github.com/nickcam/FlareClusterLayer/issues/37)). There are branches in this repo where you can get to the code that works for older versions.
+Note: The latest version will only work with arcgis v4.x versions **v4.6** to **v4.9**, and not with v4.10+ currently (ref. [#37](https://github.com/nickcam/FlareClusterLayer/issues/37)). There are branches in this repo where you can get to the code that works for older versions.
+There's also a branch for v4.11 - **v4.11-noflares** - with the clustering working but not the flares. 
 
 ## Features
 
