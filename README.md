@@ -1,4 +1,9 @@
 # FlareClusterLayer
+
+**This branch is an interim branch for arcgis-js-api that has clustering working, but the flares are disabled. Still work to be done to get flares working in v4.10+.**
+
+
+----------------------------------------------------------------------------------------
 A custom graphics layer that inherits from ArcGIS js graphics layer. Clustering is nothing special but I couldn't find an arcgis js api layer that clustered with flares which is why I created this.
 
 The clustering is performed using a grid system based on the current extent, the pixel dimensions of the map and a configurable cluster ratio that can be set to suit a data set.
