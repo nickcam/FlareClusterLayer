@@ -500,7 +500,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterLayer.prototype._activateCluster = function (cluster) {
             if (this._activeCluster === cluster) {
-                return; // already active
+                return; // already active 
             }
             this._deactivateCluster();
             this._activeCluster = cluster;

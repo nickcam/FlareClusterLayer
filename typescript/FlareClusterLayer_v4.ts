@@ -698,7 +698,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     private _activateCluster(cluster: Cluster) {
 
         if (this._activeCluster === cluster) {
-            return; // already active
+            return; // already active 
         }
 
         this._deactivateCluster();
