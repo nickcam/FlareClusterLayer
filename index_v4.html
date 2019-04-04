@@ -11,7 +11,7 @@
 
 
     <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
-    <link rel="stylesheet" href="https://js.arcgis.com/4.9/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/css/main.css">
 
     <style>
         html, body {
@@ -206,17 +206,26 @@
             packages: [{
                 name: "fcl",
                 location: location.pathname.replace(/\/[^/]+$/, '') + "/fcl"
-            }],
-            has: {
-                "esri-promise-compatibility": 1 // enable native promises and remove the warning about using when() instead of then(). https://developers.arcgis.com/javascript/latest/guide/release-notes/index.html#improved-compatibility-with-javascript-promises
-            }
+            }]
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.9/"></script>
+    <script src="https://js.arcgis.com/4.11/"></script>
 
     <script type="text/javascript">
 
+        require([
+            "fcl/page-setup",
+            "dojo/domReady!"
+        ], function (
+            pageSetup
+        ) {
+                var setup = new pageSetup.PageSetup();
+                setup.init();
+            });
+
+
+        /*
         var map,
             mapView,
             sceneView,
@@ -472,6 +481,7 @@
 
             });
 
+        */
 
     </script>
 
@@ -488,7 +498,7 @@
 
         <div id="top-menu">
             <div class="section text">
-                <span id="title-text">Flare Cluster Layer - </span>API v4.9
+                <span id="title-text">Flare Cluster Layer - </span>API v4.11
             </div>
 
             <span class="separator"></span>
