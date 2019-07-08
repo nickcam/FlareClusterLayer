@@ -8,31 +8,29 @@ import * as TextSymbol from "esri/symbols/TextSymbol";
 import * as SimpleLineSymbol from "esri/symbols/SimpleLineSymbol";
 import * as Color from "esri/Color";
 import * as watchUtils from 'esri/core/watchUtils';
-import * as View from 'esri/views/View';
 import * as webMercatorUtils from "esri/geometry/support/webMercatorUtils";
 import * as Graphic from "esri/Graphic";
-import * as Point from "esri/geometry/Point"; 
-import * as ScreenPoint from "esri/geometry/ScreenPoint";
+import * as Point from "esri/geometry/Point";
 import * as Multipoint from "esri/geometry/Multipoint";
 import * as Polygon from "esri/geometry/Polygon";
 import * as geometryEngine from 'esri/geometry/geometryEngine';
 import * as SpatialReference from "esri/geometry/SpatialReference";
 import * as Extent from "esri/geometry/Extent";
 import * as MapView from 'esri/views/MapView';
-import * as SceneView from 'esri/views/SceneView';
- 
-import * as GFXObject from "esri/views/2d/engine/graphics/GFXObject";
-import * as Projector from "esri/views/2d/engine/graphics/Projector";
- 
+import * as SceneView from 'esri/views/MapView';
 import * as asd from "esri/core/accessorSupport/decorators";
-
 import * as on from 'dojo/on';
 import * as gfx from 'dojox/gfx';
 import * as domConstruct from 'dojo/dom-construct';
 import * as query from 'dojo/query';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
+import * as symbolUtils from "esri/symbols/support/symbolUtils";
  
+interface ScreenPoint extends __esri.ScreenPoint {
+    x: number;
+    y: number;
+}
 
 interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 
@@ -541,10 +539,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         // also create a text symbol to display the cluster count
         let textSymbol = this.textSymbol.clone();
         textSymbol.text = gridCluster.clusterCount.toString();
-        if (this._is2d && this._activeView.rotation) {
-            textSymbol.angle = 360 - this._activeView.rotation;
-        }
-
+      
         cluster.textGraphic = new Graphic({
             geometry: point,
             attributes: {
@@ -639,10 +634,10 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
      */
     private _createSurface() {
 
-        if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._layerView2d.container.element)) return;
+        if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._activeView.container)) return;
         let surfaceParentElement = undefined;
         if (this._is2d) {
-            surfaceParentElement = this._layerView2d.container.element.parentElement || this._layerView2d.container.element.parentNode;
+            surfaceParentElement = this._activeView.container.parentElement || this._activeView.container.parentNode;
         }
         else {
             surfaceParentElement = this._activeView.canvas.parentElement || this._activeView.canvas.parentNode;
@@ -654,6 +649,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domStyle.set(surface.rawNode, { position: "absolute", top: "0", zIndex: -1 });
         domAttr.set(surface.rawNode, "overflow", "visible");
         domAttr.set(surface.rawNode, "class", "fcl-surface");
+        domAttr.set(surface.rawNode, "id", "fcl-surface");
         this._activeView.fclSurface = surface;
 
     }
@@ -700,39 +696,50 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     private _activateCluster(cluster: Cluster) {
 
         if (this._activeCluster === cluster) {
-            return; // already active
-        }
-
-        if (!this._activeView.fclSurface) {
-            this._createSurface();
+            return; // already active 
         }
 
         this._deactivateCluster();
 
         this._activeCluster = cluster;
+
+        // reorder the graphics to put active one on top
+        this.graphics.reorder(this._activeCluster.clusterGraphic, this.graphics.length - 1);
+        this.graphics.reorder(this._activeCluster.textGraphic, this.graphics.length - 1);
+        if (this._activeCluster.areaGraphic) {
+            this.graphics.reorder(this._activeCluster.areaGraphic, 0);
+        }
+
+
+        if (this.clusterAreaDisplay === "activated") {
+            this._showGraphic(this._activeCluster.areaGraphic);
+        }
+
+        /* Commenting out the below until flares can be updated to work in v4.10+ */
+        if (!this._activeView.fclSurface) {
+            this._createSurface();
+        }
+
         this._initSurface();
         this._initCluster();
         this._initFlares();
 
         this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
 
-        if (this.clusterAreaDisplay === "activated") {
-            this._showGraphic(this._activeCluster.areaGraphic);
-        }
-
         //console.log("activate cluster");
     }
 
     private _deactivateCluster() {
 
-        if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
-
-        this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
-        this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
+        if (!this._activeCluster) return;
 
         if (this.clusterAreaDisplay === "activated") {
             this._hideGraphic(this._activeCluster.areaGraphic);
         }
+        
+        /* Commenting out the below until flares can be updated to work in v4.10+ */
+        this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
+        this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
 
         this._clearSurface();
         this._activeCluster = undefined;
@@ -776,7 +783,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domAttr.set(surface.rawNode, "overflow", "hidden");
     }
 
-    private _initCluster() {
+    private async _initCluster() {
         if (!this._activeCluster) return;
         let surface = this._activeView.fclSurface;
         if (!surface) return;
@@ -785,25 +792,42 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
 
-        // create the cluster shape
-        let clonedClusterElement = this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic, this._activeCluster.clusterGroup);
+        // get a copy of the active clusters symbols as html elements for symbology and text and add to the cluster group inside the custom svg.
+        let clonedClusterElement = await this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic);
+        this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
         this._addClassToElement(clonedClusterElement, "cluster");
 
-        // create the cluster text shape
-        let clonedTextElement = this._createClonedElementFromGraphic(this._activeCluster.textGraphic, this._activeCluster.clusterGroup);
-        this._addClassToElement(clonedTextElement, "cluster-text");
-        clonedTextElement.setAttribute("pointer-events", "none");
-
-        this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
+        let clonedTextElement = await this._createClonedElementFromGraphic(this._activeCluster.textGraphic);
         this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
-
-        // set the group elements class     
+        this._addClassToElement(clonedTextElement, "cluster-text");
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
 
+    }   
+
+
+    private async _createClonedElementFromGraphic(graphic: Graphic) {
+
+        let element = await symbolUtils.renderPreviewHTML(graphic.symbol);
+        let svg = element.children[0]; 
+        let children : Node[] = [];
+
+        // loop the children of the returned symbol. Ignore g and defs tags. This could certainly be better.
+        for(let i = 0; i < svg.children.length; i++) {
+            let el = svg.children[i]
+            if(el.tagName === "g") {
+                for(let j = 0; j < el.children.length; j++){
+                    if(el.children[j].tagName !== "defs") {
+                        return <HTMLElement>el.children[j];
+                    }
+                }
+            }
+        }
+
+        // default to return an empty g. Should never get hit though.
+        return document.createElement("g");
     }
 
-
-    private _initFlares() {
+    private async _initFlares() {
         if (!this._activeCluster || !this.displayFlares) return;
 
         let gridCluster = this._activeCluster.gridCluster;
@@ -815,7 +839,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         if (!singleFlares && !subTypeFlares) {
             return; // no flares required
         }
-
+ 
         let flares: Flare[] = [];
         if (singleFlares) {
             for (var i = 0, len = gridCluster.singles.length; i < len; i++) {
@@ -921,6 +945,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
         // flares have been created so add them to the dom
         for (let i = 0, len = flares.length; i < len; i++) {
+
             let f = flares[i];
             if (!f.graphic) continue;
 
@@ -928,12 +953,13 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
 
             let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
-
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");
-            let flareElement = this._createClonedElementFromGraphic(f.graphic, f.flareGroup);
+           
+            let flareElement = await this._createClonedElementFromGraphic(f.graphic);
             f.flareGroup.rawNode.appendChild(flareElement);
+
             if (f.textGraphic) {
-                let flareTextElement = this._createClonedElementFromGraphic(f.textGraphic, f.flareGroup);
+                let flareTextElement = await this._createClonedElementFromGraphic(f.textGraphic);
                 flareTextElement.setAttribute("pointer-events", "none");
                 f.flareGroup.rawNode.appendChild(flareTextElement);
             }
@@ -943,7 +969,6 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             // assign some event handlers for the tooltips
             f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", () => this._createTooltip(f));
             f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", () => this._destroyTooltip());
-
         }
 
     }
@@ -1045,49 +1070,6 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
 
     // #region helper functions
-
-    private _createClonedElementFromGraphic(graphic: Graphic, surface: any): HTMLElement {
-
-        // fake out a GFXObject so we can generate an svg shape that the passed in graphics shape
-        let g = new GFXObject();
-        g.graphic = graphic;
-        g.renderingInfo = { symbol: graphic.symbol };
-
-        // set up parameters for the call to render
-        // set the transform of the projector to 0's as we're just placing the generated cluster shape at exactly 0,0.
-        let projector = new Projector();
-        projector._transform = [0, 0, 0, 0, 0, 0];
-        projector._resolution = 0;
-
-        let state = undefined;
-        if (this._is2d) {
-            state = this._activeView.state;
-        }
-        else {
-            // fake out a state object for 3d views.
-            state = {
-                clippedExtent: this._activeView.extent,
-                rotation: 0,
-                spatialReference: this._activeView.spatialReference,
-                worldScreenWidth: 1
-            };
-        }
-
-        let par = {
-            surface: surface,
-            state: state,
-            projector: projector
-        };
-
-        g.doRender(par);
-
-        // need to fix up the transform of the new shape. Text symbols seem to get a bit out of whack.
-        let yoffset = graphic.symbol["yoffset"] ? graphic.symbol["yoffset"] * -1 : 0;
-        let xoffset = graphic.symbol["xoffset"] ? graphic.symbol["xoffset"] * -1 : 0;
-        g._shape.setTransform({ xx: 1, yy: 1, dy: yoffset, dx: xoffset });
-
-        return g._shape.rawNode;
-    }
 
 
     private _extent(): Extent {
@@ -1203,7 +1185,7 @@ interface ActiveView extends MapView, SceneView {
     fclPointerDown: IHandle;
 
     constraints: any;
-    goTo: (target: any, options: __esri.MapViewGoToOptions) => IPromise<any>;
+    goTo: (target: any, options: __esri.MapViewBaseGoToOptions) => IPromise<any>;
     toMap: (screenPoint: ScreenPoint) => Point;
 }
 

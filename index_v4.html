@@ -11,7 +11,7 @@
 
 
     <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
-    <link rel="stylesheet" href="https://js.arcgis.com/4.9/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/css/main.css">
 
     <style>
         html, body {
@@ -213,7 +213,7 @@
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.9/"></script>
+    <script src="https://js.arcgis.com/4.11/"></script>
 
     <script type="text/javascript">
 
@@ -434,9 +434,10 @@
                 function setActiveView(view) {
                     if (view === activeView) return; // it's already active
 
+                    var viewpoint = activeView.viewpoint.clone();
                     var container = activeView.container;
                     activeView.container = null;
-                    var viewpoint = activeView.viewpoint.clone();
+                    
                     if (view === mapView) {
                         mapView.viewpoint = viewpoint;
                         mapView.container = container;
@@ -488,7 +489,7 @@
 
         <div id="top-menu">
             <div class="section text">
-                <span id="title-text">Flare Cluster Layer - </span>API v4.9
+                <span id="title-text">Flare Cluster Layer - </span>API v4.11
             </div>
 
             <span class="separator"></span>
