@@ -501,7 +501,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
     }
 
 
-    private _createCluster(gridCluster: GridCluster) {
+    private async _createCluster(gridCluster: GridCluster) {
 
         let cluster = new Cluster();
         cluster.gridCluster = gridCluster;
@@ -524,7 +524,9 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             attributes: attributes,
             geometry: point
         });
-        cluster.clusterGraphic.symbol = this.clusterRenderer.getClassBreakInfo(cluster.clusterGraphic).symbol;
+
+        let cbi = await this.clusterRenderer.getClassBreakInfo(cluster.clusterGraphic);
+        cluster.clusterGraphic.symbol = cbi.symbol;
 
         if (this._is2d && this._activeView.rotation) {
             cluster.clusterGraphic.symbol["angle"] = 360 - this._activeView.rotation;
@@ -574,7 +576,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 }
 
                 cluster.areaGraphic = new Graphic({ geometry: areaPoly, attributes: areaAttr });
-                cluster.areaGraphic.symbol = this.areaRenderer.getClassBreakInfo(cluster.areaGraphic).symbol;
+                cluster.areaGraphic.symbol =  (await this.areaRenderer.getClassBreakInfo(cluster.areaGraphic)).symbol;
 
             }
         }
@@ -584,7 +586,11 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             this.add(cluster.areaGraphic);
         }
         this.add(cluster.clusterGraphic);
-        this.add(cluster.textGraphic);
+
+        // add text graphic in a slight timeout, to make sure text graphics are on top of cluster graphics. Need to wait for clusters to render.
+        setTimeout(() => {
+            this.add(cluster.textGraphic);
+        }, 5);
 
         this._clusters[cluster.clusterId] = cluster;
     }
@@ -781,7 +787,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         query(".cluster-group", surface.containerGroup.rawNode).forEach(domConstruct.destroy);
         domStyle.set(surface.rawNode, { zIndex: -1, overflow: "hidden", top: "0px", left: "0px" });
         domAttr.set(surface.rawNode, "overflow", "hidden");
-    }
+    } 
 
     private async _initCluster() {
         if (!this._activeCluster) return;
@@ -915,7 +921,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
                 popupTemplate: null
             });
 
-            flare.graphic.symbol = this._getFlareSymbol(flare.graphic);
+            flare.graphic.symbol = await this._getFlareSymbol(flare.graphic);
             if (this._is2d && this._activeView.rotation) {
                 flare.graphic.symbol["angle"] = 360 - this._activeView.rotation;
             }
@@ -997,11 +1003,15 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         return position;
     }
 
-    private _getFlareSymbol(flareGraphic: Graphic): SimpleMarkerSymbol {
-        return !this.flareRenderer ? this.flareSymbol : this.flareRenderer.getClassBreakInfo(flareGraphic).symbol;
+    private async _getFlareSymbol(flareGraphic: Graphic): Promise<SimpleMarkerSymbol> {
+        
+        if(!this.flareRenderer)
+            return this.flareSymbol;
+
+        return <SimpleMarkerSymbol>(await this.flareRenderer.getClassBreakInfo(flareGraphic)).symbol;
     }
 
-    private _createTooltip(flare: Flare) {
+    private async _createTooltip(flare: Flare) {
 
         let flareGroup = flare.flareGroup;
         this._destroyTooltip();
@@ -1025,7 +1035,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         let tooltipGroup = flareGroup.createGroup();
 
         // get the flare symbol, we'll use this to style the tooltip box
-        let flareSymbol = this._getFlareSymbol(flare.graphic);
+        let flareSymbol = await this._getFlareSymbol(flare.graphic);
 
         // align on top for normal flare, align on bottom for summary flares.
         let height = flareSymbol.size;
@@ -1215,7 +1225,7 @@ class Flare {
     tooltipText: string;
     flareText: string;
     singleData: any[];
-    flareGroup: any;
+    flareGroup: any; 
     isSummary: boolean;
 }
 
