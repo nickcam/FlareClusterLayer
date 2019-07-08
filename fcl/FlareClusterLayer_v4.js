@@ -450,7 +450,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             // add text graphic in a slight timeout, to make sure text graphics are on top of cluster graphics. Need to wait for clusters to render.
                             setTimeout(function () {
                                 _this.add(cluster.textGraphic);
-                            }, 5);
+                            }, 10);
                             this._clusters[cluster.clusterId] = cluster;
                             return [2 /*return*/];
                     }
