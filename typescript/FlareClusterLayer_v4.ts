@@ -8,7 +8,6 @@ import * as TextSymbol from "esri/symbols/TextSymbol";
 import * as SimpleLineSymbol from "esri/symbols/SimpleLineSymbol";
 import * as Color from "esri/Color";
 import * as watchUtils from 'esri/core/watchUtils';
-import * as View from 'esri/views/View';
 import * as webMercatorUtils from "esri/geometry/support/webMercatorUtils";
 import * as Graphic from "esri/Graphic";
 import * as Point from "esri/geometry/Point";
@@ -26,6 +25,7 @@ import * as domConstruct from 'dojo/dom-construct';
 import * as query from 'dojo/query';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
+import * as symbolUtils from "esri/symbols/support/symbolUtils";
  
 interface ScreenPoint extends __esri.ScreenPoint {
     x: number;
@@ -539,10 +539,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         // also create a text symbol to display the cluster count
         let textSymbol = this.textSymbol.clone();
         textSymbol.text = gridCluster.clusterCount.toString();
-        if (this._is2d && this._activeView.rotation) {
-            textSymbol.angle = 360 - this._activeView.rotation;
-        }
-
+      
         cluster.textGraphic = new Graphic({
             geometry: point,
             attributes: {
@@ -637,10 +634,10 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
      */
     private _createSurface() {
 
-        if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._layerView2d.container.element)) return;
+        if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._activeView.container)) return;
         let surfaceParentElement = undefined;
         if (this._is2d) {
-            surfaceParentElement = this._layerView2d.container.element.parentElement || this._layerView2d.container.element.parentNode;
+            surfaceParentElement = this._activeView.container.parentElement || this._activeView.container.parentNode;
         }
         else {
             surfaceParentElement = this._activeView.canvas.parentElement || this._activeView.canvas.parentNode;
@@ -652,6 +649,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domStyle.set(surface.rawNode, { position: "absolute", top: "0", zIndex: -1 });
         domAttr.set(surface.rawNode, "overflow", "visible");
         domAttr.set(surface.rawNode, "class", "fcl-surface");
+        domAttr.set(surface.rawNode, "id", "fcl-surface");
         this._activeView.fclSurface = surface;
 
     }
@@ -717,41 +715,34 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             this._showGraphic(this._activeCluster.areaGraphic);
         }
 
-        /* Commenting out the below until flares can be updated to work in v4.10+
+        /* Commenting out the below until flares can be updated to work in v4.10+ */
         if (!this._activeView.fclSurface) {
             this._createSurface();
         }
 
- 
         this._initSurface();
         this._initCluster();
         this._initFlares();
 
         this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
 
-        */
-
         //console.log("activate cluster");
     }
 
     private _deactivateCluster() {
 
-        //if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
         if (!this._activeCluster) return;
 
         if (this.clusterAreaDisplay === "activated") {
             this._hideGraphic(this._activeCluster.areaGraphic);
         }
-        this._activeCluster = undefined;
-
-        /* Commenting out the below until flares can be updated to work in v4.10+
+        
+        /* Commenting out the below until flares can be updated to work in v4.10+ */
         this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
         this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
 
-        
         this._clearSurface();
         this._activeCluster = undefined;
-        */
 
         //console.log("DE-activate cluster");
 
@@ -792,7 +783,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         domAttr.set(surface.rawNode, "overflow", "hidden");
     }
 
-    private _initCluster() {
+    private async _initCluster() {
         if (!this._activeCluster) return;
         let surface = this._activeView.fclSurface;
         if (!surface) return;
@@ -801,13 +792,42 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
 
-        // set the group elements class     
+        // get a copy of the active clusters symbols as html elements for symbology and text and add to the cluster group inside the custom svg.
+        let clonedClusterElement = await this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic);
+        this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
+        this._addClassToElement(clonedClusterElement, "cluster");
+
+        let clonedTextElement = await this._createClonedElementFromGraphic(this._activeCluster.textGraphic);
+        this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
+        this._addClassToElement(clonedTextElement, "cluster-text");
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
 
+    }   
+
+
+    private async _createClonedElementFromGraphic(graphic: Graphic) {
+
+        let element = await symbolUtils.renderPreviewHTML(graphic.symbol);
+        let svg = element.children[0]; 
+        let children : Node[] = [];
+
+        // loop the children of the returned symbol. Ignore g and defs tags. This could certainly be better.
+        for(let i = 0; i < svg.children.length; i++) {
+            let el = svg.children[i]
+            if(el.tagName === "g") {
+                for(let j = 0; j < el.children.length; j++){
+                    if(el.children[j].tagName !== "defs") {
+                        return <HTMLElement>el.children[j];
+                    }
+                }
+            }
+        }
+
+        // default to return an empty g. Should never get hit though.
+        return document.createElement("g");
     }
 
-
-    private _initFlares() {
+    private async _initFlares() {
         if (!this._activeCluster || !this.displayFlares) return;
 
         let gridCluster = this._activeCluster.gridCluster;
@@ -819,7 +839,7 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
         if (!singleFlares && !subTypeFlares) {
             return; // no flares required
         }
-
+ 
         let flares: Flare[] = [];
         if (singleFlares) {
             for (var i = 0, len = gridCluster.singles.length; i < len; i++) {
@@ -925,20 +945,30 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
 
         // flares have been created so add them to the dom
         for (let i = 0, len = flares.length; i < len; i++) {
+
             let f = flares[i];
             if (!f.graphic) continue;
 
             // create a group to hold flare object and text if needed. 
             f.flareGroup = this._activeCluster.clusterGroup.createGroup();
 
+            let position = this._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i, degreeVariance, viewRotation);
             this._addClassToElement(f.flareGroup.rawNode, "flare-group");
+           
+            let flareElement = await this._createClonedElementFromGraphic(f.graphic);
+            f.flareGroup.rawNode.appendChild(flareElement);
+
+            if (f.textGraphic) {
+                let flareTextElement = await this._createClonedElementFromGraphic(f.textGraphic);
+                flareTextElement.setAttribute("pointer-events", "none");
+                f.flareGroup.rawNode.appendChild(flareTextElement);
+            }
 
             this._addClassToElement(f.flareGroup.rawNode, "activated", 10);
 
             // assign some event handlers for the tooltips
             f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", () => this._createTooltip(f));
             f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", () => this._destroyTooltip());
-
         }
 
     }

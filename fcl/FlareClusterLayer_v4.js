@@ -21,7 +21,42 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", "esri/core/watchUtils", "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", "esri/geometry/geometryEngine", "esri/geometry/SpatialReference", "esri/core/accessorSupport/decorators", "dojo/on", "dojox/gfx", "dojo/dom-construct", "dojo/query", "dojo/dom-attr", "dojo/dom-style"], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, asd, on, gfx, domConstruct, query, domAttr, domStyle) {
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleMarkerSymbol", "esri/symbols/TextSymbol", "esri/symbols/SimpleLineSymbol", "esri/Color", "esri/core/watchUtils", "esri/geometry/support/webMercatorUtils", "esri/Graphic", "esri/geometry/Point", "esri/geometry/Multipoint", "esri/geometry/Polygon", "esri/geometry/geometryEngine", "esri/geometry/SpatialReference", "esri/core/accessorSupport/decorators", "dojo/on", "dojox/gfx", "dojo/dom-construct", "dojo/query", "dojo/dom-attr", "dojo/dom-style", "esri/symbols/support/symbolUtils"], function (require, exports, GraphicsLayer, SimpleMarkerSymbol, TextSymbol, SimpleLineSymbol, Color, watchUtils, webMercatorUtils, Graphic, Point, Multipoint, Polygon, geometryEngine, SpatialReference, asd, on, gfx, domConstruct, query, domAttr, domStyle, symbolUtils) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var FlareClusterLayer = /** @class */ (function (_super) {
@@ -367,9 +402,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             // also create a text symbol to display the cluster count
             var textSymbol = this.textSymbol.clone();
             textSymbol.text = gridCluster.clusterCount.toString();
-            if (this._is2d && this._activeView.rotation) {
-                textSymbol.angle = 360 - this._activeView.rotation;
-            }
             cluster.textGraphic = new Graphic({
                 geometry: point,
                 attributes: {
@@ -446,11 +478,11 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
          * @param view
          */
         FlareClusterLayer.prototype._createSurface = function () {
-            if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._layerView2d.container.element))
+            if (this._activeView.fclSurface || (this._activeView.type === "2d" && !this._activeView.container))
                 return;
             var surfaceParentElement = undefined;
             if (this._is2d) {
-                surfaceParentElement = this._layerView2d.container.element.parentElement || this._layerView2d.container.element.parentNode;
+                surfaceParentElement = this._activeView.container.parentElement || this._activeView.container.parentNode;
             }
             else {
                 surfaceParentElement = this._activeView.canvas.parentElement || this._activeView.canvas.parentNode;
@@ -460,6 +492,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             domStyle.set(surface.rawNode, { position: "absolute", top: "0", zIndex: -1 });
             domAttr.set(surface.rawNode, "overflow", "visible");
             domAttr.set(surface.rawNode, "class", "fcl-surface");
+            domAttr.set(surface.rawNode, "id", "fcl-surface");
             this._activeView.fclSurface = surface;
         };
         FlareClusterLayer.prototype._viewPointerMove = function (evt) {
@@ -513,37 +546,27 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             if (this.clusterAreaDisplay === "activated") {
                 this._showGraphic(this._activeCluster.areaGraphic);
             }
-            /* Commenting out the below until flares can be updated to work in v4.10+
+            /* Commenting out the below until flares can be updated to work in v4.10+ */
             if (!this._activeView.fclSurface) {
                 this._createSurface();
             }
-    
-     
             this._initSurface();
             this._initCluster();
             this._initFlares();
-    
             this._hideGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
-    
-            */
             //console.log("activate cluster");
         };
         FlareClusterLayer.prototype._deactivateCluster = function () {
-            //if (!this._activeCluster || !this._activeCluster.clusterGroup) return;
             if (!this._activeCluster)
                 return;
             if (this.clusterAreaDisplay === "activated") {
                 this._hideGraphic(this._activeCluster.areaGraphic);
             }
-            this._activeCluster = undefined;
-            /* Commenting out the below until flares can be updated to work in v4.10+
+            /* Commenting out the below until flares can be updated to work in v4.10+ */
             this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
             this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
-    
-            
             this._clearSurface();
             this._activeCluster = undefined;
-            */
             //console.log("DE-activate cluster");
         };
         FlareClusterLayer.prototype._initSurface = function () {
@@ -576,131 +599,205 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             domAttr.set(surface.rawNode, "overflow", "hidden");
         };
         FlareClusterLayer.prototype._initCluster = function () {
-            if (!this._activeCluster)
-                return;
-            var surface = this._activeView.fclSurface;
-            if (!surface)
-                return;
-            // we're going to replicate a cluster graphic in the svg element we added to the layer view. Just so it can be styled easily. Native WebGL for Scene Views would probably be better, but at least this way css can still be used to style/animate things.
-            this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
-            this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
-            // set the group elements class     
-            this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
+            return __awaiter(this, void 0, void 0, function () {
+                var surface, clonedClusterElement, clonedTextElement;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!this._activeCluster)
+                                return [2 /*return*/];
+                            surface = this._activeView.fclSurface;
+                            if (!surface)
+                                return [2 /*return*/];
+                            // we're going to replicate a cluster graphic in the svg element we added to the layer view. Just so it can be styled easily. Native WebGL for Scene Views would probably be better, but at least this way css can still be used to style/animate things.
+                            this._activeCluster.clusterGroup = surface.containerGroup.createGroup();
+                            this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "cluster-group");
+                            return [4 /*yield*/, this._createClonedElementFromGraphic(this._activeCluster.clusterGraphic)];
+                        case 1:
+                            clonedClusterElement = _a.sent();
+                            this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
+                            this._addClassToElement(clonedClusterElement, "cluster");
+                            return [4 /*yield*/, this._createClonedElementFromGraphic(this._activeCluster.textGraphic)];
+                        case 2:
+                            clonedTextElement = _a.sent();
+                            this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
+                            this._addClassToElement(clonedTextElement, "cluster-text");
+                            this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        };
+        FlareClusterLayer.prototype._createClonedElementFromGraphic = function (graphic) {
+            return __awaiter(this, void 0, void 0, function () {
+                var element, svg, children, i, el, j;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, symbolUtils.renderPreviewHTML(graphic.symbol)];
+                        case 1:
+                            element = _a.sent();
+                            svg = element.children[0];
+                            children = [];
+                            // loop the children of the returned symbol. Ignore g and defs tags. This could certainly be better.
+                            for (i = 0; i < svg.children.length; i++) {
+                                el = svg.children[i];
+                                if (el.tagName === "g") {
+                                    for (j = 0; j < el.children.length; j++) {
+                                        if (el.children[j].tagName !== "defs") {
+                                            return [2 /*return*/, el.children[j]];
+                                        }
+                                    }
+                                }
+                            }
+                            // default to return an empty g. Should never get hit though.
+                            return [2 /*return*/, document.createElement("g")];
+                    }
+                });
+            });
         };
         FlareClusterLayer.prototype._initFlares = function () {
-            var _this = this;
-            if (!this._activeCluster || !this.displayFlares)
-                return;
-            var gridCluster = this._activeCluster.gridCluster;
-            // check if we need to create flares for the cluster
-            var singleFlares = (gridCluster.singles && gridCluster.singles.length > 0) && (gridCluster.clusterCount <= this.maxSingleFlareCount);
-            var subTypeFlares = !singleFlares && (gridCluster.subTypeCounts && gridCluster.subTypeCounts.length > 0);
-            if (!singleFlares && !subTypeFlares) {
-                return; // no flares required
-            }
-            var flares = [];
-            if (singleFlares) {
-                for (var i = 0, len = gridCluster.singles.length; i < len; i++) {
-                    var f = new Flare();
-                    f.tooltipText = gridCluster.singles[i][this.singleFlareTooltipProperty];
-                    f.singleData = gridCluster.singles[i];
-                    f.flareText = "";
-                    flares.push(f);
-                }
-            }
-            else if (subTypeFlares) {
-                // sort sub types by highest count first
-                var subTypes = gridCluster.subTypeCounts.sort(function (a, b) {
-                    return b.count - a.count;
-                });
-                for (var i = 0, len = subTypes.length; i < len; i++) {
-                    var f = new Flare();
-                    f.tooltipText = subTypes[i].name + " (" + subTypes[i].count + ")";
-                    f.flareText = subTypes[i].count;
-                    flares.push(f);
-                }
-            }
-            // if there are more flare objects to create than the maxFlareCount and this is one of those - create a summary flare that contains '...' as the text.
-            var willContainSummaryFlare = flares.length > this.maxFlareCount;
-            var flareCount = willContainSummaryFlare ? this.maxFlareCount : flares.length;
-            // if there's an even amount of flares, position the first flare to the left, minus 180 from degree to do this.
-            // for an add amount position the first flare on top, -90 to do this. Looks nicer this way.
-            var degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
-            var viewRotation = this._is2d ? this._activeView.rotation : 0;
-            var clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
-            var clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
-            for (var i_1 = 0; i_1 < flareCount; i_1++) {
-                var flare = flares[i_1];
-                // set some attribute data
-                var flareAttributes = {
-                    isFlare: true,
-                    isSummaryFlare: false,
-                    tooltipText: "",
-                    flareTextGraphic: undefined,
-                    clusterGraphicId: this._activeCluster.clusterId,
-                    clusterCount: gridCluster.clusterCount
-                };
-                var flareTextAttributes = {};
-                // do a couple of things differently if this is a summary flare or not
-                var isSummaryFlare = willContainSummaryFlare && i_1 >= this.maxFlareCount - 1;
-                if (isSummaryFlare) {
-                    flare.isSummary = true;
-                    flareAttributes.isSummaryFlare = true;
-                    var tooltipText = "";
-                    // multiline tooltip for summary flares, ie: greater than this.maxFlareCount flares per cluster
-                    for (var j = this.maxFlareCount - 1, jlen = flares.length; j < jlen; j++) {
-                        tooltipText += j > (this.maxFlareCount - 1) ? "\n" : "";
-                        tooltipText += flares[j].tooltipText;
+            return __awaiter(this, void 0, void 0, function () {
+                var gridCluster, singleFlares, subTypeFlares, flares, i, len, f, subTypes, i, len, f, willContainSummaryFlare, flareCount, degreeVariance, viewRotation, clusterScreenPoint, clusterSymbolSize, i_1, flare, flareAttributes, flareTextAttributes, isSummaryFlare, tooltipText, j, jlen, textSymbol, _loop_1, this_1, i_2, len_1;
+                var _this = this;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!this._activeCluster || !this.displayFlares)
+                                return [2 /*return*/];
+                            gridCluster = this._activeCluster.gridCluster;
+                            singleFlares = (gridCluster.singles && gridCluster.singles.length > 0) && (gridCluster.clusterCount <= this.maxSingleFlareCount);
+                            subTypeFlares = !singleFlares && (gridCluster.subTypeCounts && gridCluster.subTypeCounts.length > 0);
+                            if (!singleFlares && !subTypeFlares) {
+                                return [2 /*return*/]; // no flares required
+                            }
+                            flares = [];
+                            if (singleFlares) {
+                                for (i = 0, len = gridCluster.singles.length; i < len; i++) {
+                                    f = new Flare();
+                                    f.tooltipText = gridCluster.singles[i][this.singleFlareTooltipProperty];
+                                    f.singleData = gridCluster.singles[i];
+                                    f.flareText = "";
+                                    flares.push(f);
+                                }
+                            }
+                            else if (subTypeFlares) {
+                                subTypes = gridCluster.subTypeCounts.sort(function (a, b) {
+                                    return b.count - a.count;
+                                });
+                                for (i = 0, len = subTypes.length; i < len; i++) {
+                                    f = new Flare();
+                                    f.tooltipText = subTypes[i].name + " (" + subTypes[i].count + ")";
+                                    f.flareText = subTypes[i].count;
+                                    flares.push(f);
+                                }
+                            }
+                            willContainSummaryFlare = flares.length > this.maxFlareCount;
+                            flareCount = willContainSummaryFlare ? this.maxFlareCount : flares.length;
+                            degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
+                            viewRotation = this._is2d ? this._activeView.rotation : 0;
+                            clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
+                            clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
+                            for (i_1 = 0; i_1 < flareCount; i_1++) {
+                                flare = flares[i_1];
+                                flareAttributes = {
+                                    isFlare: true,
+                                    isSummaryFlare: false,
+                                    tooltipText: "",
+                                    flareTextGraphic: undefined,
+                                    clusterGraphicId: this._activeCluster.clusterId,
+                                    clusterCount: gridCluster.clusterCount
+                                };
+                                flareTextAttributes = {};
+                                isSummaryFlare = willContainSummaryFlare && i_1 >= this.maxFlareCount - 1;
+                                if (isSummaryFlare) {
+                                    flare.isSummary = true;
+                                    flareAttributes.isSummaryFlare = true;
+                                    tooltipText = "";
+                                    // multiline tooltip for summary flares, ie: greater than this.maxFlareCount flares per cluster
+                                    for (j = this.maxFlareCount - 1, jlen = flares.length; j < jlen; j++) {
+                                        tooltipText += j > (this.maxFlareCount - 1) ? "\n" : "";
+                                        tooltipText += flares[j].tooltipText;
+                                    }
+                                    flare.tooltipText = tooltipText;
+                                }
+                                flareAttributes.tooltipText = flare.tooltipText;
+                                // create a graphic for the flare and for the flare text
+                                flare.graphic = new Graphic({
+                                    attributes: flareAttributes,
+                                    geometry: this._activeCluster.clusterGraphic.geometry,
+                                    popupTemplate: null
+                                });
+                                flare.graphic.symbol = this._getFlareSymbol(flare.graphic);
+                                if (this._is2d && this._activeView.rotation) {
+                                    flare.graphic.symbol["angle"] = 360 - this._activeView.rotation;
+                                }
+                                else {
+                                    flare.graphic.symbol["angle"] = 0;
+                                }
+                                if (flare.flareText) {
+                                    textSymbol = this.flareTextSymbol.clone();
+                                    textSymbol.text = !isSummaryFlare ? flare.flareText.toString() : "...";
+                                    if (this._is2d && this._activeView.rotation) {
+                                        textSymbol.angle = 360 - this._activeView.rotation;
+                                    }
+                                    flare.textGraphic = new Graphic({
+                                        attributes: {
+                                            isText: true,
+                                            clusterGraphicId: this._activeCluster.clusterId
+                                        },
+                                        symbol: textSymbol,
+                                        geometry: this._activeCluster.clusterGraphic.geometry
+                                    });
+                                }
+                            }
+                            _loop_1 = function (i_2, len_1) {
+                                var f, position, flareElement, flareTextElement;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            f = flares[i_2];
+                                            if (!f.graphic)
+                                                return [2 /*return*/, "continue"];
+                                            // create a group to hold flare object and text if needed. 
+                                            f.flareGroup = this_1._activeCluster.clusterGroup.createGroup();
+                                            position = this_1._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i_2, degreeVariance, viewRotation);
+                                            this_1._addClassToElement(f.flareGroup.rawNode, "flare-group");
+                                            return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.graphic)];
+                                        case 1:
+                                            flareElement = _a.sent();
+                                            f.flareGroup.rawNode.appendChild(flareElement);
+                                            if (!f.textGraphic) return [3 /*break*/, 3];
+                                            return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.textGraphic)];
+                                        case 2:
+                                            flareTextElement = _a.sent();
+                                            flareTextElement.setAttribute("pointer-events", "none");
+                                            f.flareGroup.rawNode.appendChild(flareTextElement);
+                                            _a.label = 3;
+                                        case 3:
+                                            this_1._addClassToElement(f.flareGroup.rawNode, "activated", 10);
+                                            // assign some event handlers for the tooltips
+                                            f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", function () { return _this._createTooltip(f); });
+                                            f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", function () { return _this._destroyTooltip(); });
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            };
+                            this_1 = this;
+                            i_2 = 0, len_1 = flares.length;
+                            _a.label = 1;
+                        case 1:
+                            if (!(i_2 < len_1)) return [3 /*break*/, 4];
+                            return [5 /*yield**/, _loop_1(i_2, len_1)];
+                        case 2:
+                            _a.sent();
+                            _a.label = 3;
+                        case 3:
+                            i_2++;
+                            return [3 /*break*/, 1];
+                        case 4: return [2 /*return*/];
                     }
-                    flare.tooltipText = tooltipText;
-                }
-                flareAttributes.tooltipText = flare.tooltipText;
-                // create a graphic for the flare and for the flare text
-                flare.graphic = new Graphic({
-                    attributes: flareAttributes,
-                    geometry: this._activeCluster.clusterGraphic.geometry,
-                    popupTemplate: null
                 });
-                flare.graphic.symbol = this._getFlareSymbol(flare.graphic);
-                if (this._is2d && this._activeView.rotation) {
-                    flare.graphic.symbol["angle"] = 360 - this._activeView.rotation;
-                }
-                else {
-                    flare.graphic.symbol["angle"] = 0;
-                }
-                if (flare.flareText) {
-                    var textSymbol = this.flareTextSymbol.clone();
-                    textSymbol.text = !isSummaryFlare ? flare.flareText.toString() : "...";
-                    if (this._is2d && this._activeView.rotation) {
-                        textSymbol.angle = 360 - this._activeView.rotation;
-                    }
-                    flare.textGraphic = new Graphic({
-                        attributes: {
-                            isText: true,
-                            clusterGraphicId: this._activeCluster.clusterId
-                        },
-                        symbol: textSymbol,
-                        geometry: this._activeCluster.clusterGraphic.geometry
-                    });
-                }
-            }
-            var _loop_1 = function (i_2, len_1) {
-                var f = flares[i_2];
-                if (!f.graphic)
-                    return "continue";
-                // create a group to hold flare object and text if needed. 
-                f.flareGroup = this_1._activeCluster.clusterGroup.createGroup();
-                this_1._addClassToElement(f.flareGroup.rawNode, "flare-group");
-                this_1._addClassToElement(f.flareGroup.rawNode, "activated", 10);
-                // assign some event handlers for the tooltips
-                f.flareGroup.mouseEnter = on.pausable(f.flareGroup.rawNode, "mouseenter", function () { return _this._createTooltip(f); });
-                f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", function () { return _this._destroyTooltip(); });
-            };
-            var this_1 = this;
-            // flares have been created so add them to the dom
-            for (var i_2 = 0, len_1 = flares.length; i_2 < len_1; i_2++) {
-                _loop_1(i_2, len_1);
-            }
+            });
         };
         FlareClusterLayer.prototype._setFlarePosition = function (flareGroup, clusterSymbolSize, flareCount, flareIndex, degreeVariance, viewRotation) {
             // get the position of the flare to be placed around the container circle.
