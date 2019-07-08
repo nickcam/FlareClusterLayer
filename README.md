@@ -1,7 +1,5 @@
 # FlareClusterLayer
 
-**This branch is an interim branch for arcgis-js-api that has clustering working, but the flares are disabled. Still work to be done to get flares working in v4.10+.**
-
 
 ----------------------------------------------------------------------------------------
 A custom graphics layer that inherits from ArcGIS js graphics layer. Clustering is nothing special but I couldn't find an arcgis js api layer that clustered with flares which is why I created this.
@@ -10,7 +8,7 @@ The clustering is performed using a grid system based on the current extent, the
 
 Support for both for 3.x and 4.x arcgis js apis.
 
-Note: The latest version will only work with arcgis v4.x versions **v4.6** to **v4.9**, and not with v4.10 currently (ref. [#37](https://github.com/nickcam/FlareClusterLayer/issues/37)). There are branches in this repo where you can get to the code that works for older versions.
+Note: The latest version will work with arcgis-js-api version **v4.11**. There are branches in this repo where you can get to the code that works for older versions.
 
 ## Features
 
@@ -33,23 +31,34 @@ v3.x - http://flareclusterlayer.azurewebsites.net/index_v3.html
 
 v4.x - http://flareclusterlayer.azurewebsites.net/index_v4.html 
 
-## api v4.x notes
 
-I used typescript to build the v4 version (because typescript rocks), so you could either use the typescript version and compile it to js in your own project or just use the compiled version in the fcl folder, same way the demo does.
+## Usage
+
+If you want to run it locally just download or clone the repo and run
+
+```npm install```
+
+then
+
+```npm start```
+
+The reload server will spin up an instance on localhost:8080. v4.x will be compiled from the typescript.
+
+There's no npm package yet so if you want to add it to your project there's two options.
+
+- Grab the ts file **typescript/FlareClusterLayer_v4.ts** and place it somewhere in your project so it will be compiled along with the rest of your project. You'll also need @types/arcgis-js-api and the dojo typings included.
+
+- Grab the already compiled **fcl/FlareClusterLayer_v4.js** and reference it like the other javascript esri amd modules. An example of doing this is in the index_v4.html page.
+
+
+## api v4.x notes
 
 Moved all of the animations out of the code and added css classes to elements instead. Animations can be performed using css instead of in code. This allows for much more flexibility. Example css that replicates/extends the v3.x animations are in the index_v4.html example.
 
-If you want to run the repo locally, just npm install and run 
-npm start
+There's no @types package for dojo v11.x, but there is an npm package 'dojo-typings'. Even the dojo-typings package doesn't go as high as 1.12.x which arcgis now uses. Had to just include a reference to the dojo types in a custom index.d.ts file.
 
-There's no @types package for dojo v11.x yet, but there is an npm package 'dojo-typings'. Even the dojo-typings package doesn't go as high as 1.12.x which arcgis now uses. Had to just include a reference to the dojo types in a custom index.d.ts file, that also includes some custom typings as well. 
 
-If you plan to include the .ts file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
-For example, to use it in an angular 2 project you would change the imports to be -
-```
-import GraphicsLayer from "esri/layers/GraphicsLayer";
-```  
-That is assuming you're using [esri-system-js](https://github.com/Esri/esri-system-js) to load the arcgis api using systemjs.
+If you plan to include the **typescript/FlareClusterLayer_v4.ts** file in your project you may need to change the import statements at the top of the file depending on the module loader and typescript compilation options you're using.
 
 You would probably also need to remove the reference to the index.d.ts from typings at the top of the file, and just include the required typings file however your project already manages this.
 
