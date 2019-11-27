@@ -129,12 +129,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         }
         FlareClusterLayer.prototype._layerViewCreated = function (evt) {
             var _this = this;
-            if (evt.layerView.view.type === "2d") {
-                this._layerView2d = evt.layerView;
-            }
-            else {
-                this._layerView3d = evt.layerView;
-            }
             // add a stationary watch on the view to refresh if specified in options.
             if (this.refreshOnStationary) {
                 watchUtils.pausable(evt.layerView.view, "stationary", function (isStationary, b, c, view) { return _this._viewStationary(isStationary, b, c, view); });
@@ -317,7 +311,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     }
                 }
             }
-            // emit an event to signal drawing is complete. emit is not in typings for graphics layers, so use []'s to access.
+            // emit an event to signal drawing is complete.
             this.emit("draw-complete", {});
             console.timeEnd("draw-data-" + this._activeView.type);
             if (!this._activeView.fclSurface) {
@@ -562,7 +556,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             if (this.clusterAreaDisplay === "activated") {
                 this._showGraphic(this._activeCluster.areaGraphic);
             }
-            /* Commenting out the below until flares can be updated to work in v4.10+ */
             if (!this._activeView.fclSurface) {
                 this._createSurface();
             }
@@ -578,7 +571,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             if (this.clusterAreaDisplay === "activated") {
                 this._hideGraphic(this._activeCluster.areaGraphic);
             }
-            /* Commenting out the below until flares can be updated to work in v4.10+ */
             this._showGraphic([this._activeCluster.clusterGraphic, this._activeCluster.textGraphic]);
             this._removeClassFromElement(this._activeCluster.clusterGroup.rawNode, "activated");
             this._clearSurface();
@@ -632,6 +624,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                         case 1:
                             clonedClusterElement = _a.sent();
                             this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
+                            this._translateClonedClusterElement(clonedClusterElement);
                             this._addClassToElement(clonedClusterElement, "cluster");
                             return [4 /*yield*/, this._createClonedElementFromGraphic(this._activeCluster.textGraphic)];
                         case 2:
@@ -646,22 +639,22 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterLayer.prototype._createClonedElementFromGraphic = function (graphic) {
             return __awaiter(this, void 0, void 0, function () {
-                var element, svg, children, i, el, j;
+                var element, svg, i, el, j, clusterElement;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, symbolUtils.renderPreviewHTML(graphic.symbol)];
                         case 1:
                             element = _a.sent();
                             svg = element.children[0];
-                            children = [];
                             // loop the children of the returned symbol. Ignore g and defs tags. This could certainly be better.
                             for (i = 0; i < svg.children.length; i++) {
                                 el = svg.children[i];
                                 if (el.tagName === "g") {
                                     for (j = 0; j < el.children.length; j++) {
-                                        if (el.children[j].tagName !== "defs") {
-                                            return [2 /*return*/, el.children[j]];
-                                        }
+                                        if (el.children[j].tagName === "defs")
+                                            continue;
+                                        clusterElement = el.children[j];
+                                        return [2 /*return*/, clusterElement];
                                     }
                                 }
                             }
@@ -673,7 +666,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterLayer.prototype._initFlares = function () {
             return __awaiter(this, void 0, void 0, function () {
-                var gridCluster, singleFlares, subTypeFlares, flares, i, len, f, subTypes, i, len, f, willContainSummaryFlare, flareCount, degreeVariance, viewRotation, clusterScreenPoint, clusterSymbolSize, i_1, flare, flareAttributes, flareTextAttributes, isSummaryFlare, tooltipText, j, jlen, _a, textSymbol, _loop_1, this_1, i_2, len_1;
+                var gridCluster, singleFlares, subTypeFlares, flares, i, len, f, subTypes, i, len, f, willContainSummaryFlare, flareCount, degreeVariance, viewRotation, clusterSymbolSize, i_1, flare, flareAttributes, isSummaryFlare, tooltipText, j, jlen, _a, textSymbol, _loop_1, this_1, i_2, len_1;
                 var _this = this;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
@@ -711,7 +704,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             flareCount = willContainSummaryFlare ? this.maxFlareCount : flares.length;
                             degreeVariance = (flareCount % 2 === 0) ? -180 : -90;
                             viewRotation = this._is2d ? this._activeView.rotation : 0;
-                            clusterScreenPoint = this._activeView.toScreen(this._activeCluster.clusterGraphic.geometry);
                             clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
                             i_1 = 0;
                             _b.label = 1;
@@ -726,7 +718,6 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                 clusterGraphicId: this._activeCluster.clusterId,
                                 clusterCount: gridCluster.clusterCount
                             };
-                            flareTextAttributes = {};
                             isSummaryFlare = willContainSummaryFlare && i_1 >= this.maxFlareCount - 1;
                             if (isSummaryFlare) {
                                 flare.isSummary = true;
@@ -777,7 +768,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             return [3 /*break*/, 1];
                         case 4:
                             _loop_1 = function (i_2, len_1) {
-                                var f, position, flareElement, flareTextElement;
+                                var f, flareElement, flareTextElement;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
@@ -786,12 +777,13 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                                 return [2 /*return*/, "continue"];
                                             // create a group to hold flare object and text if needed. 
                                             f.flareGroup = this_1._activeCluster.clusterGroup.createGroup();
-                                            position = this_1._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i_2, degreeVariance, viewRotation);
+                                            this_1._setFlarePosition(f.flareGroup, clusterSymbolSize, flareCount, i_2, degreeVariance, viewRotation);
                                             this_1._addClassToElement(f.flareGroup.rawNode, "flare-group");
                                             return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.graphic)];
                                         case 1:
                                             flareElement = _a.sent();
                                             f.flareGroup.rawNode.appendChild(flareElement);
+                                            this_1._translateClonedClusterElement(flareElement);
                                             if (!f.textGraphic) return [3 /*break*/, 3];
                                             return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.textGraphic)];
                                         case 2:
@@ -855,6 +847,17 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     }
                 });
             });
+        };
+        /**
+         * This is required as of v4.13. Elements retrieved from _createClonedElementFromGraphic are positioned at the top left of the insertion point from v4.13 onwards.
+         * Minus half the width and height by using translate. Do this straight after it has been inserted into the dom.
+         * Don't do it for text elements though, they're still fine.
+         */
+        FlareClusterLayer.prototype._translateClonedClusterElement = function (element) {
+            var bb = element.getBoundingClientRect();
+            if (!bb)
+                return;
+            element.setAttribute("transform", "translate(" + (bb.width / 2) * -1 + "," + (bb.height / 2) * -1 + ")");
         };
         FlareClusterLayer.prototype._createTooltip = function (flare) {
             return __awaiter(this, void 0, void 0, function () {

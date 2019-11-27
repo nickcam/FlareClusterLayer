@@ -11,7 +11,7 @@
 
 
     <link href="//fonts.googleapis.com/css?family=Abel" rel="stylesheet">
-    <link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.13/esri/css/main.css">
 
     <style>
         html, body {
@@ -213,7 +213,7 @@
         };
     </script>
 
-    <script src="https://js.arcgis.com/4.12/"></script>
+    <script src="https://js.arcgis.com/4.13/"></script>
 
     <script type="text/javascript">
 
@@ -324,7 +324,8 @@
                     var smSymbol = new SimpleMarkerSymbol({ size: 22, outline: new SimpleLineSymbol({ color: [221, 159, 34, 0.8] }), color: [255, 204, 102, 0.8] });
                     var mdSymbol = new SimpleMarkerSymbol({ size: 24, outline: new SimpleLineSymbol({ color: [82, 163, 204, 0.8] }), color: [102, 204, 255, 0.8] });
                     var lgSymbol = new SimpleMarkerSymbol({ size: 28, outline: new SimpleLineSymbol({ color: [41, 163, 41, 0.8] }), color: [51, 204, 51, 0.8] });
-                    var xlSymbol = new SimpleMarkerSymbol({ size: 32, outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
+                    //var xlSymbol = new SimpleMarkerSymbol({ size: 32, outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
+                    var xlSymbol = new SimpleMarkerSymbol({ size: 32, style: "diamond", outline: new SimpleLineSymbol({ color: [200, 52, 59, 0.8] }), color: [250, 65, 74, 0.8] });
 
                     renderer.addClassBreakInfo(0, 19, smSymbol);
                     renderer.addClassBreakInfo(20, 150, mdSymbol);
@@ -489,7 +490,7 @@
 
         <div id="top-menu">
             <div class="section text">
-                <span id="title-text">Flare Cluster Layer - </span>API v4.12
+                <span id="title-text">Flare Cluster Layer - </span>API v4.13
             </div>
 
             <span class="separator"></span>
