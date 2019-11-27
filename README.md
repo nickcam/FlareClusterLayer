@@ -6,9 +6,9 @@ A custom graphics layer that inherits from ArcGIS js graphics layer. Clustering 
 
 The clustering is performed using a grid system based on the current extent, the pixel dimensions of the map and a configurable cluster ratio that can be set to suit a data set.
 
-Support for both for 3.x and 4.x arcgis js apis.
+Support for both for 3.x and 4.x.
 
-Note: The latest version will work with arcgis-js-api version **v4.12**. There are branches in this repo where you can get to the code that works for older versions.
+Note: The latest version will work with arcgis-js-api version **v4.12**. Check out the branches to find support for older api versions.
 
 ## Features
 
@@ -42,7 +42,7 @@ then
 
 ```npm start```
 
-The reload server will spin up an instance on localhost:8080. v4.x will be compiled from the typescript.
+The reload server will spin up an instance on localhost:8080. v4.x will be compiled from typescript.
 
 There's no npm package yet so if you want to add it to your project there's two options.
 
