@@ -8,7 +8,7 @@ The clustering is performed using a grid system based on the current extent, the
 
 Support for both for 3.x and 4.x.
 
-Note: The latest version will work with arcgis-js-api version **v4.12**. Check out the branches to find support for older api versions.
+Note: The latest version will work with arcgis-js-api version **v4.13**. Check out the branches to find support for older api versions.
 
 ## Features
 
