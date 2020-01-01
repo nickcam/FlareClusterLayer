@@ -8,7 +8,7 @@ The clustering is performed using a grid system based on the current extent, the
 
 Support for both for 3.x and 4.x.
 
-Note: The latest version will work with arcgis-js-api version **v4.13**. Check out the branches to find support for older api versions.
+Note: The latest version will work with arcgis-js-api version **v4.13 - v4.14**. Check out the branches to find support for older api versions.
 
 ## Features
 
@@ -24,7 +24,7 @@ Note: The latest version will work with arcgis-js-api version **v4.13**. Check o
 
 - Supports MapView (2d) and SceneView (3d) for api v4.x.
 
-All of the options are explained in the constructor of the layer/s so just check out the code for a full explanation. 
+All of the options are explained in the constructor of the layer so just check out the code for a full explanation. 
 Demos are here:
 
 v3.x - http://flareclusterlayer.azurewebsites.net/index_v3.html
