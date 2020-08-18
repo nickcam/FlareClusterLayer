@@ -824,11 +824,19 @@ export class FlareClusterLayer extends GraphicsLayer {
         return document.createElement("g");
     }
 
-
+    private _flareClickHandlers: dojo.Handle[] = [];
     private async _initFlares() {
         if (!this._activeCluster || !this.displayFlares) return;
 
         let gridCluster = this._activeCluster.gridCluster;
+
+        // clean up any existing flare click handlers just in case
+        if(this._flareClickHandlers && this._flareClickHandlers.length > 0) {
+            for(let fch of this._flareClickHandlers) {
+                if(fch) fch.remove();
+            }
+        }
+        this._flareClickHandlers = [];
 
         // check if we need to create flares for the cluster
         let singleFlares = (gridCluster.singles && gridCluster.singles.length > 0) && (gridCluster.clusterCount <= this.maxSingleFlareCount);
@@ -954,10 +962,10 @@ export class FlareClusterLayer extends GraphicsLayer {
             f.flareGroup.rawNode.appendChild(flareElement);
             this._translateClonedClusterElement(flareElement);
 
-            flareElement.addEventListener("click", () => {
-                console.log('flare click event');
-            });
+            this._flareClickHandlers.push(on(flareElement, "click", () => this._flareClicked(f)));
 
+            //flareElement.addEventListener("click", () => this._flareClicked(f));
+            
             if (f.textGraphic) {
                 let flareTextElement = await this._createClonedElementFromGraphic(f.textGraphic);
                 flareTextElement.setAttribute("pointer-events", "none");
@@ -971,6 +979,10 @@ export class FlareClusterLayer extends GraphicsLayer {
             f.flareGroup.mouseLeave = on.pausable(f.flareGroup.rawNode, "mouseleave", () => this._destroyTooltip());
         }
 
+    }
+
+    private _flareClicked(flare: Flare) {
+        this.emit("flare-clicked", flare);
     }
 
     private _setFlarePosition(flareGroup: any, clusterSymbolSize: number, flareCount: number, flareIndex: number, degreeVariance: number, viewRotation: number) {

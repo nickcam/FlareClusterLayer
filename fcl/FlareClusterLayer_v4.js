@@ -65,6 +65,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             var _this = _super.call(this, options) || this;
             _this._viewLoadCount = 0;
             _this._clusters = {};
+            _this._flareClickHandlers = [];
             // set the defaults
             if (!options) {
                 // missing required parameters
@@ -666,14 +667,23 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterLayer.prototype._initFlares = function () {
             return __awaiter(this, void 0, void 0, function () {
-                var gridCluster, singleFlares, subTypeFlares, flares, i, len, f, subTypes, i, len, f, willContainSummaryFlare, flareCount, degreeVariance, viewRotation, clusterSymbolSize, i_1, flare, flareAttributes, isSummaryFlare, tooltipText, j, jlen, _a, textSymbol, _loop_1, this_1, i_2, len_1;
+                var gridCluster, _i, _a, fch, singleFlares, subTypeFlares, flares, i, len, f, subTypes, i, len, f, willContainSummaryFlare, flareCount, degreeVariance, viewRotation, clusterSymbolSize, i_1, flare, flareAttributes, isSummaryFlare, tooltipText, j, jlen, _b, textSymbol, _loop_1, this_1, i_2, len_1;
                 var _this = this;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
+                return __generator(this, function (_c) {
+                    switch (_c.label) {
                         case 0:
                             if (!this._activeCluster || !this.displayFlares)
                                 return [2 /*return*/];
                             gridCluster = this._activeCluster.gridCluster;
+                            // clean up any existing flare click handlers just in case
+                            if (this._flareClickHandlers && this._flareClickHandlers.length > 0) {
+                                for (_i = 0, _a = this._flareClickHandlers; _i < _a.length; _i++) {
+                                    fch = _a[_i];
+                                    if (fch)
+                                        fch.remove();
+                                }
+                            }
+                            this._flareClickHandlers = [];
                             singleFlares = (gridCluster.singles && gridCluster.singles.length > 0) && (gridCluster.clusterCount <= this.maxSingleFlareCount);
                             subTypeFlares = !singleFlares && (gridCluster.subTypeCounts && gridCluster.subTypeCounts.length > 0);
                             if (!singleFlares && !subTypeFlares) {
@@ -706,7 +716,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             viewRotation = this._is2d ? this._activeView.rotation : 0;
                             clusterSymbolSize = this._activeCluster.clusterGraphic.symbol.get("size");
                             i_1 = 0;
-                            _b.label = 1;
+                            _c.label = 1;
                         case 1:
                             if (!(i_1 < flareCount)) return [3 /*break*/, 4];
                             flare = flares[i_1];
@@ -737,10 +747,10 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                 geometry: this._activeCluster.clusterGraphic.geometry,
                                 popupTemplate: null
                             });
-                            _a = flare.graphic;
+                            _b = flare.graphic;
                             return [4 /*yield*/, this._getFlareSymbol(flare.graphic)];
                         case 2:
-                            _a.symbol = _b.sent();
+                            _b.symbol = _c.sent();
                             if (this._is2d && this._activeView.rotation) {
                                 flare.graphic.symbol["angle"] = 360 - this._activeView.rotation;
                             }
@@ -762,7 +772,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                     geometry: this._activeCluster.clusterGraphic.geometry
                                 });
                             }
-                            _b.label = 3;
+                            _c.label = 3;
                         case 3:
                             i_1++;
                             return [3 /*break*/, 1];
@@ -784,9 +794,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                             flareElement = _a.sent();
                                             f.flareGroup.rawNode.appendChild(flareElement);
                                             this_1._translateClonedClusterElement(flareElement);
-                                            flareElement.addEventListener("click", function () {
-                                                console.log('flare click event');
-                                            });
+                                            this_1._flareClickHandlers.push(on(flareElement, "click", function () { return _this._flareClicked(f); }));
                                             if (!f.textGraphic) return [3 /*break*/, 3];
                                             return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.textGraphic)];
                                         case 2:
@@ -805,13 +813,13 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             };
                             this_1 = this;
                             i_2 = 0, len_1 = flares.length;
-                            _b.label = 5;
+                            _c.label = 5;
                         case 5:
                             if (!(i_2 < len_1)) return [3 /*break*/, 8];
                             return [5 /*yield**/, _loop_1(i_2, len_1)];
                         case 6:
-                            _b.sent();
-                            _b.label = 7;
+                            _c.sent();
+                            _c.label = 7;
                         case 7:
                             i_2++;
                             return [3 /*break*/, 5];
@@ -819,6 +827,9 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                     }
                 });
             });
+        };
+        FlareClusterLayer.prototype._flareClicked = function (flare) {
+            this.emit("flare-clicked", flare);
         };
         FlareClusterLayer.prototype._setFlarePosition = function (flareGroup, clusterSymbolSize, flareCount, flareIndex, degreeVariance, viewRotation) {
             // get the position of the flare to be placed around the container circle.

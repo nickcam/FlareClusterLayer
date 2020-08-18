@@ -408,6 +408,10 @@
                         //console.log('draw complete event callback');
                     });
 
+                    clusterLayer.on("flare-clicked", function (flare) {
+                        console.log('flare clicked', flare);
+                    });
+
                 }
 
                 function clearLayer() {
