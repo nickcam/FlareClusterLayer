@@ -784,6 +784,9 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                                             flareElement = _a.sent();
                                             f.flareGroup.rawNode.appendChild(flareElement);
                                             this_1._translateClonedClusterElement(flareElement);
+                                            flareElement.addEventListener("click", function () {
+                                                console.log('flare click event');
+                                            });
                                             if (!f.textGraphic) return [3 /*break*/, 3];
                                             return [4 /*yield*/, this_1._createClonedElementFromGraphic(f.textGraphic)];
                                         case 2:
@@ -1013,7 +1016,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             __metadata("design:paramtypes", [Object])
         ], FlareClusterLayer);
         return FlareClusterLayer;
-    }(asd.declared(GraphicsLayer)));
+    }(GraphicsLayer));
     exports.FlareClusterLayer = FlareClusterLayer;
     var GridCluster = /** @class */ (function () {
         function GridCluster() {

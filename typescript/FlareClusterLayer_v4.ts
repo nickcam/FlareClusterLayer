@@ -73,7 +73,7 @@ interface FlareClusterLayerProperties extends __esri.GraphicsLayerProperties {
 }
 
 @asd.subclass("FlareClusterLayer")
-export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
+export class FlareClusterLayer extends GraphicsLayer {
 
     singleRenderer: any;
     singleSymbol: SimpleMarkerSymbol;
@@ -953,6 +953,10 @@ export class FlareClusterLayer extends asd.declared(GraphicsLayer) {
             let flareElement = await this._createClonedElementFromGraphic(f.graphic);
             f.flareGroup.rawNode.appendChild(flareElement);
             this._translateClonedClusterElement(flareElement);
+
+            flareElement.addEventListener("click", () => {
+                console.log('flare click event');
+            });
 
             if (f.textGraphic) {
                 let flareTextElement = await this._createClonedElementFromGraphic(f.textGraphic);
