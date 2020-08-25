@@ -690,6 +690,7 @@ export class FlareClusterLayer extends GraphicsLayer {
         });
     }
 
+    private _clusterClickHandler: dojo.Handle;
     private _activateCluster(cluster: Cluster) {
 
         if (this._activeCluster === cluster) {
@@ -726,6 +727,8 @@ export class FlareClusterLayer extends GraphicsLayer {
     }
 
     private _deactivateCluster() {
+
+        if(this._clusterClickHandler) this._clusterClickHandler.remove();
 
         if (!this._activeCluster) return;
 
@@ -793,8 +796,11 @@ export class FlareClusterLayer extends GraphicsLayer {
         this._translateClonedClusterElement(clonedClusterElement);
 
         this._addClassToElement(clonedClusterElement, "cluster");
+ 
+        this._clusterClickHandler = on(clonedClusterElement, "click", () => this._clusterClicked(this._activeCluster));
 
         let clonedTextElement = await this._createClonedElementFromGraphic(this._activeCluster.textGraphic);
+        clonedTextElement.setAttribute("pointer-events", "none");
         this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
         this._addClassToElement(clonedTextElement, "cluster-text");
         this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
@@ -963,8 +969,6 @@ export class FlareClusterLayer extends GraphicsLayer {
             this._translateClonedClusterElement(flareElement);
 
             this._flareClickHandlers.push(on(flareElement, "click", () => this._flareClicked(f)));
-
-            //flareElement.addEventListener("click", () => this._flareClicked(f));
             
             if (f.textGraphic) {
                 let flareTextElement = await this._createClonedElementFromGraphic(f.textGraphic);
@@ -983,6 +987,10 @@ export class FlareClusterLayer extends GraphicsLayer {
 
     private _flareClicked(flare: Flare) {
         this.emit("flare-clicked", flare);
+    }
+
+    private _clusterClicked(cluster: Cluster) {
+        this.emit("cluster-clicked", cluster);
     }
 
     private _setFlarePosition(flareGroup: any, clusterSymbolSize: number, flareCount: number, flareIndex: number, degreeVariance: number, viewRotation: number) {

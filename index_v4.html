@@ -412,6 +412,10 @@
                         console.log('flare clicked', flare);
                     });
 
+                    clusterLayer.on("cluster-clicked", function (cluster) {
+                        console.log('cluster clicked', cluster);
+                    });
+
                 }
 
                 function clearLayer() {

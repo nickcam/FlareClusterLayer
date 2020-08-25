@@ -567,6 +567,8 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
             //console.log("activate cluster");
         };
         FlareClusterLayer.prototype._deactivateCluster = function () {
+            if (this._clusterClickHandler)
+                this._clusterClickHandler.remove();
             if (!this._activeCluster)
                 return;
             if (this.clusterAreaDisplay === "activated") {
@@ -610,6 +612,7 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         FlareClusterLayer.prototype._initCluster = function () {
             return __awaiter(this, void 0, void 0, function () {
                 var surface, clonedClusterElement, clonedTextElement;
+                var _this = this;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
@@ -627,9 +630,11 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
                             this._activeCluster.clusterGroup.rawNode.appendChild(clonedClusterElement);
                             this._translateClonedClusterElement(clonedClusterElement);
                             this._addClassToElement(clonedClusterElement, "cluster");
+                            this._clusterClickHandler = on(clonedClusterElement, "click", function () { return _this._clusterClicked(_this._activeCluster); });
                             return [4 /*yield*/, this._createClonedElementFromGraphic(this._activeCluster.textGraphic)];
                         case 2:
                             clonedTextElement = _a.sent();
+                            clonedTextElement.setAttribute("pointer-events", "none");
                             this._activeCluster.clusterGroup.rawNode.appendChild(clonedTextElement);
                             this._addClassToElement(clonedTextElement, "cluster-text");
                             this._addClassToElement(this._activeCluster.clusterGroup.rawNode, "activated", 10);
@@ -830,6 +835,9 @@ define(["require", "exports", "esri/layers/GraphicsLayer", "esri/symbols/SimpleM
         };
         FlareClusterLayer.prototype._flareClicked = function (flare) {
             this.emit("flare-clicked", flare);
+        };
+        FlareClusterLayer.prototype._clusterClicked = function (cluster) {
+            this.emit("cluster-clicked", cluster);
         };
         FlareClusterLayer.prototype._setFlarePosition = function (flareGroup, clusterSymbolSize, flareCount, flareIndex, degreeVariance, viewRotation) {
             // get the position of the flare to be placed around the container circle.
