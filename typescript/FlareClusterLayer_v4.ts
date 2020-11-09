@@ -26,6 +26,7 @@ import * as query from 'dojo/query';
 import * as domAttr from 'dojo/dom-attr';
 import * as domStyle from 'dojo/dom-style';
 import * as symbolUtils from "esri/symbols/support/symbolUtils";
+import { getThumbnailUrl } from "esri/widgets/BasemapToggle/BasemapToggleViewModel";
 
 interface ScreenPoint extends __esri.ScreenPoint {
     x: number;
@@ -653,20 +654,21 @@ export class FlareClusterLayer extends GraphicsLayer {
 
     private _viewPointerMove(evt) {
 
-        let mousePos = this._getMousePos(evt);
+        //let mousePos = this._getMousePos(evt);
 
         // if there's an active cluster and the current screen pos is within the bounds of that cluster's group container, don't do anything more. 
         // TODO: would probably be better to check if the point is in the actual circle of the cluster group and it's flares instead of using the rectanglar bounding box.
         if (this._activeCluster && this._activeCluster.clusterGroup) {
             let bbox = this._activeCluster.clusterGroup.rawNode.getBoundingClientRect();
+            let point = this._getOffsetPoint(evt.x, evt.y);          
             if (bbox) {
-                if (mousePos.x >= bbox.left && mousePos.x <= bbox.right && mousePos.y >= bbox.top && mousePos.y <= bbox.bottom) return;
+                if (point.x >= bbox.left && point.x <= bbox.right && point.y >= bbox.top && point.y <= bbox.bottom) return;
             }
         }
 
         if (!this._activeView.ready) return;
 
-        let hitTest = this._activeView.hitTest(mousePos);
+        let hitTest = this._activeView.hitTest(evt);
         if (!hitTest) return;
         hitTest.then((response) => {
 
@@ -688,6 +690,32 @@ export class FlareClusterLayer extends GraphicsLayer {
                 }
             }
         });
+    }
+
+    private _getOffsetPoint(x, y) {
+        if(!this._activeView || !this._activeView.container) return;
+
+        let xx = x;
+        let yy = y;
+        if(this._activeView.container.offsetTop) {
+            yy += this._activeView.container.offsetTop;
+            if(this._activeView.container.offsetParent && this._activeView.container.offsetParent["offsetTop"]) {
+               yy += (this._activeView.container.offsetParent as any).offsetTop;
+            }
+        }
+
+        if(this._activeView.container.offsetLeft) {
+            xx += this._activeView.container.offsetLeft;
+            if(this._activeView.container.offsetParent && this._activeView.container.offsetParent["offsetLeft"]) {
+               xx += (this._activeView.container.offsetParent as any).offsetLeft;
+            }
+        }
+
+        return {
+            x: xx,
+            y: yy
+        }
+
     }
 
     private _clusterClickHandler: dojo.Handle;
@@ -757,6 +785,10 @@ export class FlareClusterLayer extends GraphicsLayer {
 
         // toScreen() returns the wrong value for x if a 2d map has been wrapped around the globe. Need to check and cater for this. I think this a bug in the api.
         if (this._is2d) {
+
+            if(this._activeView.container.offsetTop) sp.y += this._activeView.container.offsetTop;
+            if(this._activeView.container.offsetLeft) sp.x += sp.x + this._activeView.container.offsetLeft;
+
             var wsw = this._activeView.state.worldScreenWidth;
             let ratio = parseInt((sp.x / wsw).toFixed(0)); // get a ratio to determine how many times the map has been wrapped around.
             if (sp.x < 0) {
@@ -1171,16 +1203,21 @@ export class FlareClusterLayer extends GraphicsLayer {
 
     }
 
-    private _getMousePos(evt) {
-        // container on the view is actually a html element at this point, not a string as the typings suggest.
-        let container: any = this._activeView.container;
-        if (!container) { return { x: 0, y: 0 } };
-        let rect = container.getBoundingClientRect();
-        return {
-            x: evt.x - rect.left,
-            y: evt.y - rect.top
-        };
-    }
+    // private _getMousePos(evt) {
+    //     let container = this._activeView.container;
+    //     if (!container) { return { x: 0, y: 0 } };
+    //     let rect = container.getBoundingClientRect();
+    //     let k = container.offsetTop;
+    //     let l = container.offsetLeft;
+    //     // return {
+    //     //     x: evt.x - rect.left - container.offsetLeft,
+    //     //     y: (evt.y - rect.top) + container.offsetTop
+    //     // };
+    //     return {
+    //         x: evt.x,
+    //         y: evt.y
+    //     }
+    // }
 
 
     /**
